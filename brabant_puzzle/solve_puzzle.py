@@ -160,10 +160,6 @@ def main():
     t0 = time()
 
     while not queue.empty():
-        if time() - t0 > 1:
-            new_filename = get_filename()
-            yield filename != new_filename
-
         prio, _, (S, d) = copy.deepcopy(queue.get())
         visited.append(S)
 
@@ -209,6 +205,4 @@ def main():
 
 
 if __name__ == "__main__":
-    while True:
-        reset = main()
-        print(next(reset))
+    main()
