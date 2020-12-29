@@ -1,23 +1,11 @@
-<h1>Settings</h1>
+<h1>Cell {{ cell_id }}: {{ type }}</h1>
+<b>Current answer:</b> {{ curr_value }}
 
 <!-- <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <input type="file" name="myfile">
     <button type="submit">Upload</button>
 </form> -->
-
-<b>Current mode:</b>
-{{ curent_mode }}
-
-<br>
-
-<b>Current algorithm:</b>
-{{ current_algorithm }}
-
-<br>
-
-<b>Current timeout:</b>
-{{ current_timeout }} minutes
 
 <form method="post", enctype="multipart/form-data">
     {% csrf_token %}

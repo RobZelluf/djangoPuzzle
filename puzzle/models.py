@@ -21,7 +21,6 @@ class UploadCategories(models.Model):
 
 
 class UploadSettings(models.Model):
-    # mode = models.TextField(help_text="normal/reverse/random")
 
     MODE_CHOICES = (
         ('normal', 'normal'),
@@ -31,11 +30,25 @@ class UploadSettings(models.Model):
 
     ALGORITHM_CHOICES = (
         ('bfs', 'bfs'),
-        ('dfs', 'dfs')
+        ('dfs', 'dfs'),
+        ('a-star', 'a-star'),
+        ('b-star', 'b-star'),
+        ('c-star', 'c-star')
+    )
+
+    SELF_FILLED_CHOICES = (
+        ('True', 'True'),
+        ('False', 'False')
     )
 
     with open("brabant_puzzle/settings.txt", "r") as f:
         settings = json.load(f)
 
     mode = models.CharField(max_length=10, choices=MODE_CHOICES, default=settings["mode"])
-    algorithm = models.CharField(max_length=4, choices=ALGORITHM_CHOICES, default=settings["algorithm"])
+    algorithm = models.CharField(max_length=6, choices=ALGORITHM_CHOICES, default=settings["algorithm"])
+    timeout = models.TextField(max_length=100, default=settings["timeout"])
+    use_self_filled = models.CharField(max_length=10, choices=SELF_FILLED_CHOICES, default=settings["use_self_filled"])
+
+
+class UpdateCell(models.Model):
+    answer = models.CharField(max_length=100)

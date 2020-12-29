@@ -1,3 +1,4 @@
+from brabant_puzzle.utils import get_all_options
 from make_puzzle import category_cells
 from fill_answers import categorieen, antwoorden
 from make_puzzle import neighs as adjacency_dict
@@ -11,7 +12,6 @@ import datetime
 import random
 import numpy as np
 from time import time
-from pprint import pprint
 import json
 
 import pandas as pd
@@ -24,8 +24,7 @@ class Solver:
         print(self.filename)
         self.plotter = Plotter()
 
-        self.all_options = copy.copy(categorieen)
-        self.all_options.extend(antwoorden)
+        self.all_options = get_all_options()
 
         with open("settings.txt", "r") as f:
             self.settings = json.load(f)
@@ -64,6 +63,7 @@ class Solver:
                 ind2 = self.all_options.index(category2)
                 self.overlaps[ind1, ind2] = 1
                 self.overlaps[ind2, ind1] = 1
+
         self.solutions = []
         self.visited = []
         self.filled = []
@@ -82,20 +82,21 @@ class Solver:
                 start_S[int(cell)] = answer_int
                 self.filled.append(answer_int)
 
-        with open("self_filled.csv", "r") as f:
-            df = pd.read_csv(f, index_col=0)
-            for cell, answer in df.iterrows():
-                answer = answer.Answer
-                answer_int = self.all_options.index(answer)
+        if self.settings["use_self_filled"] == "True":
+            with open("self_filled.csv", "r") as f:
+                df = pd.read_csv(f, index_col=0)
+                for cell, answer in df.iterrows():
+                    answer = answer.Answer
+                    answer_int = self.all_options.index(answer)
 
-                start_S[int(cell)] = answer_int
-                self.filled.append(answer_int)
+                    start_S[int(cell)] = answer_int
+                    self.filled.append(answer_int)
 
         # Setup for solving
         self.queue = PriorityQueue()
-        self.queue.put((0, id(start_S), (start_S, 0)))
+        self.queue.put((0, id(start_S), start_S))
 
-        self.best_prio = 300
+        self.least_unfilled = 300
         self.biggest_queue_size = 0
         self.best_solution = None
 
@@ -115,7 +116,6 @@ class Solver:
         for neigh in neighs:
             neigh_val = S[neigh]
             if neigh_val is not None:
-                text_vals = [self.all_options[neigh_val], self.all_options[value]]
 
                 if self.overlaps[value, neigh_val] == 0:
                     return False, False
@@ -125,6 +125,7 @@ class Solver:
         return True, matches
 
     def get_neighbor_states(self, S, visited):
+        stop_ind = None
         options = defaultdict(int)
 
         neighbors = []
@@ -135,6 +136,8 @@ class Solver:
             lst = list(enumerate(S))
 
         for cell, fill in lst:
+            stop_ind = None
+
             if fill is None:
                 if cell in category_cells:
                     for category in [self.all_options.index(x) for x in categorieen]:
@@ -144,7 +147,7 @@ class Solver:
 
                             new_S[cell] = category
                             if new_S not in visited:
-                                neighbors.append((category, new_S))
+                                neighbors.append((category, new_S, matches))
 
                             options[category] += 1
                 else:
@@ -155,14 +158,19 @@ class Solver:
 
                             new_S[cell] = antwoord
                             if new_S not in visited:
-                                neighbors.append((antwoord, new_S))
+                                neighbors.append((antwoord, new_S, matches))
 
                             options[antwoord] += 1
 
-                if self.settings["mode"] != "random":
-                    break
+                if self.settings["mode"] != "random" and stop_ind is None:
+                    stop_ind = len(neighbors)
 
-        random.shuffle(neighbors)
+        if stop_ind is None:
+            random.shuffle(neighbors)
+        else:
+            neighbors = neighbors[:stop_ind]
+            random.shuffle(neighbors)
+
         return neighbors, options
 
     def solve(self):
@@ -172,24 +180,20 @@ class Solver:
             if diff > 5:
                 return
 
-            prio, _, (S, d) = copy.deepcopy(self.queue.get())
+            prio, _, S = copy.deepcopy(self.queue.get())
             self.visited.append(S)
 
             neighs, options = self.get_neighbor_states(S, self.visited)
-            for added, new_S in neighs:
+            for added, new_S, matches in neighs:
                 nones = [v for k, v in enumerate(new_S) if v is None]
-                priority = len(nones)
-                if priority < self.best_prio:
+                num_unfilled = len(nones)
+                if num_unfilled < self.least_unfilled:
                     now = datetime.datetime.now().strftime("%H:%M:%S")
 
-                    num_filled = 0
-                    for cell, val in enumerate(new_S):
-                        if val is None:
-                            num_filled = cell - 1
-                            break
+                    num_filled = len([x for x in new_S if x is not None])
 
-                    print("Found closer solution:", priority,  ". Filled:", num_filled, "(", now, ") - (", self.queue.qsize(), ")")
-                    self.best_prio = priority
+                    print("Found closer solution:", num_unfilled,  ". Filled:", num_filled, "(", now, ") - (", self.queue.qsize(), ")")
+                    self.least_unfilled = num_unfilled
                     self.best_solution = copy.deepcopy(new_S)
                     self.plotter.plot(new_S, self.all_options)
 
@@ -197,7 +201,7 @@ class Solver:
                     self.biggest_queue_size = self.queue.qsize()
                     print("Queue size:", self.queue.qsize())
 
-                if priority == 0:
+                if num_unfilled == 0:
                     print("Solved!")
                     self.solutions.append(new_S)
                     print("Number of solutions:", len(self.solutions))
@@ -207,11 +211,22 @@ class Solver:
                     continue
 
                 if self.settings["algorithm"] == "dfs":
-                    prio = priority
-                else:
-                    prio = -priority
+                    prio = num_unfilled
+                elif self.settings["algorithm"] == "bfs":
+                    prio = -num_unfilled
+                elif self.settings["algorithm"] == "a-star":
+                    prio = -matches
 
-                self.queue.put((prio, [id(new_S), d], [new_S, d]))
+                elif self.settings["algorithm"] == "b-star" or self.settings["algorithm"] == "c-star":
+                    if matches == 0:
+                        prio = options[added]
+                    else:
+                        prio = options[added] / matches
+
+                    if self.settings["algorithm"] == "c-star":
+                        prio = num_unfilled * prio
+
+                self.queue.put((prio, id(new_S), new_S))
 
         print("Partially solved!")
         with open("partially_solved.p", "wb") as f:
@@ -221,6 +236,7 @@ class Solver:
 if __name__ == "__main__":
     while True:
         solver = Solver()
+        start_time = time()
         while True:
             solver.solve()
 
@@ -231,3 +247,21 @@ if __name__ == "__main__":
             if solver.settings != solver.get_settings():
                 print("Settings changed!")
                 break
+
+            with open("restart.txt", "r") as f:
+                restart = f.readline()
+
+            if restart == "True":
+                print("Manual restarting!")
+                with open("restart.txt", "w") as f:
+                    f.write("False")
+
+                break
+
+            if float(solver.settings["timeout"]) > 0:
+                timeout = float(solver.settings["timeout"])
+                if time() - start_time > 60 * timeout:
+                    print("Timing out after", timeout, "minutes!")
+                    break
+
+

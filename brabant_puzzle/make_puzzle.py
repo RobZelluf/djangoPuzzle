@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 elements = [8, 9, 10, 11, 12, 13, 14, 15, 14, 13, 12, 11, 10, 9, 8]
-category_cells = [171, 172, 173, 174, 175]
+category_cells = [170, 171, 172, 173, 174]
 
 counter = 0
 
