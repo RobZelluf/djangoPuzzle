@@ -5,7 +5,7 @@ from brabant_puzzle.fill_answers import categorieen, antwoorden
 
 
 def get_filename():
-    filename = sorted(os.listdir("/home/rob/Documents/puzzleDjango/excel_files/"), key=lambda x: int(x[4:-5]))[-16]
+    filename = sorted(os.listdir("/home/rob/Documents/puzzleDjango/excel_files/"), key=lambda x: int(x[4:-5]))[-1]
     filename = "/home/rob/Documents/puzzleDjango/excel_files/" + filename
 
     return filename

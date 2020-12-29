@@ -166,7 +166,6 @@ class Solver:
                         break
 
         # random.shuffle(neighbors)
-
         return neighbors, options
 
     def solve(self):
