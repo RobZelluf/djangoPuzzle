@@ -112,6 +112,7 @@ class Plotter:
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
 
+        self.fig.tight_layout()
         self.fig.savefig(self.filepath)
         plt.close(self.fig)
 

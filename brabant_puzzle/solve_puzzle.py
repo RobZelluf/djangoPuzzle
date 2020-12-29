@@ -125,7 +125,7 @@ class Solver:
         return True, matches
 
     def get_neighbor_states(self, S, visited):
-        stop_ind = None
+        stop_adding = False
         options = defaultdict(int)
 
         neighbors = []
@@ -133,11 +133,9 @@ class Solver:
         if self.settings["mode"] == "reverse":
             lst = reversed(list(enumerate(S)))
         else:
-            lst = list(enumerate(S))
+            lst = enumerate(S)
 
         for cell, fill in lst:
-            stop_ind = None
-
             if fill is None:
                 if cell in category_cells:
                     for category in [self.all_options.index(x) for x in categorieen]:
@@ -146,7 +144,7 @@ class Solver:
                             new_S = copy.copy(S)
 
                             new_S[cell] = category
-                            if new_S not in visited:
+                            if new_S not in visited and not stop_adding:
                                 neighbors.append((category, new_S, matches))
 
                             options[category] += 1
@@ -157,19 +155,17 @@ class Solver:
                             new_S = copy.copy(S)
 
                             new_S[cell] = antwoord
-                            if new_S not in visited:
+                            if new_S not in visited and not stop_adding:
                                 neighbors.append((antwoord, new_S, matches))
 
                             options[antwoord] += 1
 
-                if self.settings["mode"] != "random" and stop_ind is None:
-                    stop_ind = len(neighbors)
+                if self.settings["mode"] != "random" and not stop_adding:
+                    stop_adding = True
+                    if "star" not in self.settings["algorithm"]:
+                        break
 
-        if stop_ind is None:
-            random.shuffle(neighbors)
-        else:
-            neighbors = neighbors[:stop_ind]
-            random.shuffle(neighbors)
+        # random.shuffle(neighbors)
 
         return neighbors, options
 

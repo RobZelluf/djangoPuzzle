@@ -32,15 +32,7 @@ def index(request):
 
 
 def solution(request):
-    image_path = "puzzle/static/puzzle/images/latest_solution.png"
-    try:
-        with open(image_path, "rb") as f:
-            return HttpResponse(f.read(), content_type="image/jpeg")
-    except IOError:
-        red = Image.new('RGBA', (1, 1), (255, 0, 0, 0))
-        response = HttpResponse(content_type="image/jpeg")
-        red.save(response, "JPEG")
-        return response
+    return render(request, 'puzzle/solution.html')
 
 
 def upload(request):
@@ -65,7 +57,7 @@ def upload(request):
                 file_instance = UploadFile(files=f)
                 file_instance.save()
 
-                return redirect("/puzzle/index")
+                return redirect("/puzzle/")
     else:
         form = UploadFileForm()
 
@@ -170,6 +162,8 @@ def settings(request):
 
             with open('brabant_puzzle/settings.txt', 'w') as f:
                 json.dump(data, f)
+
+            return redirect("/puzzle/")
 
     else:
         form = SettingsForm()
