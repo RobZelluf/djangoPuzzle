@@ -1,6 +1,6 @@
 from django.http import HttpResponse
-from .forms import UploadFileForm, ToolForm
-from .models import clear_files, UploadFile, UploadCategories
+from .forms import UploadFileForm, ToolForm, SettingsForm
+from .models import clear_files, UploadFile, UploadCategories, UploadSettings
 from PIL import Image
 from django.shortcuts import render
 from django.views import generic
@@ -8,12 +8,14 @@ from django.urls import reverse
 from brabant_puzzle.raadsel_query import categorie_antwoord, categorien_df, antwoord_categorie
 from brabant_puzzle.cross_match import find_crossmatch
 import os
+import json
+import pandas as pd
 
 from tabulate import tabulate
 
 
 def index(request):
-    pages = ["solution", "categories", "answers", "upload", "tool"]
+    pages = ["solution", "categories", "answers", "upload", "tool", "settings"]
 
     response = ""
     for page in pages:
@@ -139,3 +141,34 @@ def tool(request):
     }
 
     return render(request, 'puzzle/tool.html', context)
+
+
+def settings(request):
+    if request.method == "POST":
+        form = SettingsForm(request.POST, request.FILES)
+        # categories = request.FILES.getlist("fields")
+        if form.is_valid():
+            mode = form.cleaned_data["mode"]
+            algorithm = form.cleaned_data["algorithm"]
+
+            data = dict(
+                mode=mode,
+                algorithm=algorithm
+            )
+
+            with open('brabant_puzzle/settings.txt', 'w') as f:
+                json.dump(data, f)
+
+    else:
+        form = SettingsForm()
+
+    with open('brabant_puzzle/settings.txt', 'r') as f:
+        settings = json.load(f)
+
+    context = {
+        'form': form,
+        'curent_mode': settings["mode"],
+        'current_algorithm': settings["algorithm"]
+    }
+
+    return render(request, 'puzzle/settings.html', context)

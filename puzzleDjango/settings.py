@@ -25,14 +25,13 @@ SECRET_KEY = 'x&f^5_v91m(0fut_b&zba-o4@jq4ypn!7zpa0r7ax05t5-fx@3'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['0.0.0.0', '192.168.178.51']
+ALLOWED_HOSTS = ['0.0.0.0', '192.168.178.51', '192.168.0.103']
 
 
 # Application definition
 
 INSTALLED_APPS = [
     'puzzle',
-    'livereload',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,7 +41,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'livereload.middleware.LiveReloadScript',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -120,7 +118,5 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-
-LIVERELOAD_HOST = '0.0.0.0'
 
 STATIC_URL = '/puzzle/static/'

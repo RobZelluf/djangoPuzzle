@@ -11,4 +11,5 @@ urlpatterns = [
     path('answers/', views.answers, name='answers'),
     path('answers/<str:answer>/', views.answer_results),
     path('tool/', views.tool, name='tool'),
+    path('settings/', views.settings, name='settings')
 ]

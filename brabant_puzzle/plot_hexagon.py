@@ -6,7 +6,7 @@ import pandas as pd
 
 
 class Plotter:
-    def __init__(self, size=30):
+    def __init__(self, size=40):
         self.size = size
         self.filepath = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/latest_solution.png"
 
@@ -69,14 +69,14 @@ class Plotter:
             self.ax.add_patch(hex)
             # Also add a text label
             if l[0] in self.filled:
-                self.ax.text(x, y + 0.2, l[0], ha='center', va='center', size=2, fontsize=10, weight='bold')
+                self.ax.text(x, y, l[0], ha='center', va='center', size=2, fontsize=10, weight='bold')
             else:
-                self.ax.text(x, y+0.2, l[0], ha='center', va='center', size=2, fontsize=10)
+                self.ax.text(x, y, l[0], ha='center', va='center', size=2, fontsize=10)
 
-            self.ax.text(x, y - 0.2, i, ha='center', va='center', size=1, fontsize=8)
+            self.ax.text(x, y - 0.2, i, ha='center', va='center', size=2, fontsize=10)
 
         # Also add scatter points in hexagon centres
-        self.ax.scatter(hcoord, vcoord, c=[c[0].lower() for c in colors], alpha=0.5)
+        self.ax.scatter(hcoord, vcoord, c=[c[0].lower() for c in colors], alpha=0.0)
 
         self.fig.savefig(self.filepath)
         plt.close(self.fig)
