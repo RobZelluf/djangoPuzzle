@@ -8,9 +8,8 @@ from PIL import Image
 from django.shortcuts import render
 from django.views import generic
 from django.urls import reverse
-from brabant_puzzle.raadsel_query import categorie_antwoord, categorien_df, antwoord_categorie
 from brabant_puzzle.cross_match import find_crossmatch
-from brabant_puzzle.utils import get_all_options
+from brabant_puzzle.utils import get_all_options, get_data
 from brabant_puzzle.make_puzzle import category_cells
 from brabant_puzzle.plot_hexagon import Plotter
 import os
@@ -50,10 +49,16 @@ def get_visited_image():
 
 
 def solution(request):
+    with open('brabant_puzzle/settings.txt', 'r') as f:
+        settings = json.load(f)
+
     context = {
         "func1": get_solution_image,
-        "func2": get_visited_image
+        "func2": get_visited_image,
     }
+
+    for k, v in settings.items():
+        context[k] = v
 
     return render(request, 'puzzle/solution.html', context)
 
@@ -92,6 +97,8 @@ def upload(request):
 
 
 def results(request, category_id):
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+
     category = categorien_df.loc[category_id].Omschrijving
     found = sorted(categorie_antwoord[category])
 
@@ -102,6 +109,8 @@ def results(request, category_id):
 
 
 def categories(request):
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+
     categorien = [[i, category.Omschrijving] for i, category in categorien_df.iterrows()]
     categorien = sorted(categorien, key = lambda x : x[1])
 
@@ -113,6 +122,7 @@ def categories(request):
 
 
 def answers(request):
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
     antwoorden = sorted(list(antwoord_categorie.keys()))
 
     output = ""
@@ -123,6 +133,7 @@ def answers(request):
 
 
 def answer_results(request, answer):
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
     categories = sorted(antwoord_categorie[answer])
 
     output = "<b>" + answer + "</b><br><br>"
@@ -207,6 +218,8 @@ def settings(request):
 
 
 def cell(request, cell_id):
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+
     with open("brabant_puzzle/puzzle_filled.csv", "r") as f:
         df = pd.read_csv(f, index_col=0)
         all_prefilled = list(df.Answer)

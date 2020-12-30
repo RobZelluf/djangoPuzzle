@@ -3,12 +3,9 @@ import pandas as pd
 import difflib
 import copy
 import os
+from brabant_puzzle.utils import get_filename
 
-# filename = fileopenbox("Select Excel file")
-filenames = os.listdir("/home/rob/Documents/puzzleDjango/excel_files/")
-
-filename = sorted(os.listdir("/home/rob/Documents/puzzleDjango/excel_files/"))[-1]
-filename = "/home/rob/Documents/puzzleDjango/excel_files/" + filename
+filename = get_filename()
 
 with open(filename, "rb") as f:
     antwoorden_df = pd.read_excel(f, "Antwoorden", index_col=0)

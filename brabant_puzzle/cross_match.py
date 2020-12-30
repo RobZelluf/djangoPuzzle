@@ -4,10 +4,12 @@ from collections import defaultdict
 import numpy as np
 from pprint import pprint
 from brabant_puzzle.fill_answers import filename
-from brabant_puzzle.raadsel_query import categorie_antwoord, antwoord_categorie, categorien_df
 from tabulate import tabulate
+from brabant_puzzle.utils import get_data
+
 
 def find_crossmatch(categories):
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
     text_categories = [categorien_df.loc[x].Omschrijving for x in categories]
 
     all_categories = list(categorie_antwoord.keys())

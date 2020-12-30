@@ -3,9 +3,8 @@ import matplotlib.pyplot as plt
 from make_puzzle import category_cells
 from fill_answers import categorieen, antwoorden
 from make_puzzle import neighs as adjacency_dict
-from raadsel_query import categorie_antwoord, antwoord_categorie
 from plot_hexagon import Plotter
-from utils import get_filename
+from utils import get_filename, get_data
 import copy
 from queue import PriorityQueue
 import pickle as p
@@ -15,6 +14,7 @@ import numpy as np
 from time import time
 import json
 import os
+from functools import reduce
 
 import pandas as pd
 from collections import defaultdict
@@ -22,6 +22,8 @@ from collections import defaultdict
 
 class Solver:
     def __init__(self):
+        antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+
         self.filename = get_filename()
         print(self.filename)
         self.plotter = Plotter()
@@ -43,8 +45,13 @@ class Solver:
         # Make big overlap matrix
         self.overlaps = np.zeros((len(self.all_options), len(self.all_options)))
 
+        self.category_ind = []
+        self.answers_ind = []
+
         for i, option in enumerate(self.all_options):
             if option in antwoorden:
+                self.answers_ind.append(i)
+
                 neighs = antwoord_categorie[option]
                 neighs_ind = [self.all_options.index(x) for x in neighs]
                 for x in neighs_ind:
@@ -52,6 +59,8 @@ class Solver:
                     self.overlaps[x, i] = 1
 
             elif option in categorieen:
+                self.category_ind.append(i)
+
                 neighs = categorie_antwoord[option]
                 neighs_ind = [self.all_options.index(x) for x in neighs]
                 for x in neighs_ind:
@@ -110,12 +119,29 @@ class Solver:
         self.least_unfilled = 300
         self.biggest_queue_size = 0
         self.best_solution = None
+        self.found_better_time = time()
+        self.found_better_times = []
 
     def get_settings(self):
         with open("settings.txt", "r") as f:
             settings = json.load(f)
 
         return settings
+
+    def check_stuck(self, S):
+        for cell, value in enumerate(S):
+            if value is None:
+                all_options = []
+                neighs = adjacency_dict[cell]
+                for neigh in neighs:
+                    all_options.append(self.overlaps[neigh])
+
+                options = reduce(np.intersect1d, all_options)
+                # options = [opt for opt in options if opt not in S]
+                if len(options) == 0:
+                    return True
+
+        return False
 
     def verify_insert(self, S, cell, value):
         if value in S:
@@ -150,14 +176,13 @@ class Solver:
         for cell, fill in lst:
             if fill is None:
                 if cell in category_cells:
-                    for category in [self.all_options.index(x) for x in categorieen]:
+                    for category in self.category_ind:
                         times = [time()]
                         valid, matches = self.verify_insert(S, cell, category)
                         times.append(time())
                         if valid:
-                            cell_options[cell] += 1
                             new_S = copy.copy(S)
-                            times.append(time())
+                            cell_options[cell] += 1
 
                             new_S[cell] = category
 
@@ -165,18 +190,13 @@ class Solver:
                                 neighbors.append((category, new_S, matches))
 
                             options[category] += 1
-
-                            times.append(time())
-
-                            diff = [times[i + 1] - times[i] for i in range(len(times) - 1)]
-                            diff /= np.sum(diff)
                 else:
-                    for antwoord in [self.all_options.index(x) for x in antwoorden]:
+                    for antwoord in self.answers_ind:
                         valid, matches = self.verify_insert(S, cell, antwoord)
 
                         if valid:
-                            cell_options[cell] += 1
                             new_S = copy.copy(S)
+                            cell_options[cell] += 1
                             new_S[cell] = antwoord
                             if hash(tuple(new_S)) not in visited and not stop_adding:
                                 neighbors.append((antwoord, new_S, matches))
@@ -195,7 +215,7 @@ class Solver:
         t0 = time()
         while not self.queue.empty():
             diff = time() - t0
-            if diff > 5:
+            if diff > 10:
                 return
 
             prio, _, S = copy.deepcopy(self.queue.get())
@@ -213,7 +233,7 @@ class Solver:
                 if len(self.cell_visited) > 1000000:
                     self.cell_visited = self.cell_visited[-1000000:]
 
-                if time() - self.last_saved > 10:
+                if time() - self.last_saved > depth:
                     DIR = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images"
                     curr_files = [file for file in os.listdir(DIR) if "visited" in file]
 
@@ -233,7 +253,14 @@ class Solver:
                 nones = [v for k, v in enumerate(new_S) if v is None]
                 num_unfilled = len(nones)
                 if num_unfilled < self.least_unfilled:
-                    self.last_plotted = time()
+                    if self.check_stuck(new_S):
+                        continue
+
+                    self.found_better_times.append(time() - self.found_better_time)
+                    self.found_better_time = time()
+
+                    avg_time = float(np.mean(self.found_better_times))
+
                     self.best_time = datetime.datetime.now().strftime("%H:%M:%S")
 
                     now = datetime.datetime.now().strftime("%H:%M:%S")
@@ -243,11 +270,15 @@ class Solver:
                     print("Found closer solution:", num_unfilled,  ". Filled:", num_filled, "(", now, ") - (", self.queue.qsize(), ")")
                     self.least_unfilled = num_unfilled
                     self.best_solution = copy.deepcopy(new_S)
-                    self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time)
+
+                    if time() - self.last_plotted > min(len(self.found_better_times), 30):
+                        self.last_plotted = time()
+                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time)
 
                 elif time() - self.last_plotted > 60:
                     self.last_plotted = time()
-                    self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time)
+                    avg_time = float(np.mean(self.found_better_times))
+                    self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time)
 
                 if self.queue.qsize() % 100000 == 0 and self.queue.qsize() > self.biggest_queue_size:
                     self.biggest_queue_size = self.queue.qsize()
@@ -270,15 +301,15 @@ class Solver:
                     prio = -matches
 
                 elif "star" in self.settings["algorithm"]:
-                    if matches == 0:
-                        prio = options[added]
-                    else:
-                        prio = options[added] - matches
+                    prio = options[added]
+
+                    if self.settings["algorithm"] in ["c-star", "d-star"]:
+                        prio -= matches
 
                     if self.settings["algorithm"] == "d-star":
                         prio += cell_options[new_S.index(added)]
 
-                    if self.settings["algorithm"] in ["c-star", "d-star"]:
+                    if self.settings["algorithm"] in ["c-star"]:
                         prio += num_unfilled
 
                 self.queue.put((prio, id(new_S), new_S))

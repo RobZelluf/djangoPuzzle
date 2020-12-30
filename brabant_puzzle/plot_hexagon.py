@@ -108,14 +108,15 @@ class Plotter:
         for i, category in enumerate(self.filled[-6:]):
             self.ax.text(positions[i][0], positions[i][1], category, size=50, fontsize=50, ha='center', va='center', rotation=rotations[i], rotation_mode='anchor', color='red', weight='bold')
 
-        self.best_time = self.ax.text(-8, 0, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
-        self.last_saved = self.ax.text(-8, -0.3, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
-        self.stats = self.ax.text(-8, -0.6, "", size=30, fontsize=30)
+        self.best_time = self.ax.text(-8, 0.6, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
+        self.last_saved = self.ax.text(-8, 0.3, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
+        self.stats = self.ax.text(-8, 0.0, "", size=30, fontsize=30)
+        self.avg_time = self.ax.text(-8, -0.3, "", size=30, fontsize=30)
 
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
 
-    def plot(self, S, all_options, heatmap=None, best_time=""):
+    def plot(self, S, all_options, heatmap=None, best_time="", avg_time=-1):
         remove_filenames = []
 
         if not self.template:
@@ -185,6 +186,8 @@ class Plotter:
 
         string = "Filled: " + str(len([j for j in S if j is not None]) - len(self.self_filled) - len(self.filled)) + " / " + str(len(S) - len(self.self_filled) - len(self.filled))
         self.stats.set_text(string)
+
+        self.avg_time.set_text("Avg improvement time: " + str(round(float(avg_time), 1)) + " seconds.")
 
         self.fig.tight_layout()
         self.fig.savefig(self.filepath)

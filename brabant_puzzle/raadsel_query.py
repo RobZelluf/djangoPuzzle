@@ -5,27 +5,6 @@ import numpy as np
 from pprint import pprint
 from brabant_puzzle.fill_answers import filename
 
-categorie_antwoord = defaultdict(list)
-antwoord_categorie = defaultdict(list)
-
-
-with open(filename, "rb") as f:
-    antwoorden_df = pd.read_excel(f, "Antwoorden", index_col=0)
-    antwoorden_df = antwoorden_df.iloc[:, 1:9]
-
-    categorien_df = pd.read_excel(f, "categorieen", index_col=0)
-
-for antwoord, categorien in antwoorden_df.iterrows():
-    # print("Antwoord:", str(antwoord))
-    # print("Categorien:", list(categorien))
-
-    for categorie in categorien:
-        if not np.isnan(categorie):
-            categorie_beschrijving = categorien_df.loc[categorie].Omschrijving
-
-            categorie_antwoord[categorie_beschrijving].append(antwoord)
-            antwoord_categorie[antwoord].append(categorie_beschrijving)
-
 
 if __name__ == "__main__":
     while True:
