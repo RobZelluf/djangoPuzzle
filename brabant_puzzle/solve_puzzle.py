@@ -1,10 +1,10 @@
 from brabant_puzzle.utils import get_all_options
 import matplotlib.pyplot as plt
-from make_puzzle import category_cells
-from fill_answers import categorieen, antwoorden
-from make_puzzle import neighs as adjacency_dict
-from plot_hexagon import Plotter
-from utils import get_filename, get_data
+from brabant_puzzle.make_puzzle import category_cells
+from brabant_puzzle.fill_answers import categorieen, antwoorden
+from brabant_puzzle.make_puzzle import neighs as adjacency_dict
+from brabant_puzzle.plot_hexagon import Plotter
+from brabant_puzzle.utils import get_filename, get_data
 import copy
 from queue import PriorityQueue
 import pickle as p
@@ -24,8 +24,8 @@ class Solver:
     def __init__(self):
         antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
 
+        self.start_time = time()
         self.filename = get_filename()
-        print(self.filename)
         self.plotter = Plotter()
 
         self.cell_visited = []
@@ -39,8 +39,7 @@ class Solver:
 
         self.all_options = get_all_options()
 
-        with open("settings.txt", "r") as f:
-            self.settings = json.load(f)
+        self.settings = self.get_settings()
 
         # Make big overlap matrix
         self.overlaps = np.zeros((len(self.all_options), len(self.all_options)))
@@ -77,21 +76,21 @@ class Solver:
                 self.overlaps[ind1, ind2] = 1
                 self.overlaps[ind2, ind1] = 1
 
-        for category1 in categorieen:
-            for category2 in categorieen:
-                ind1 = self.all_options.index(category1)
-                ind2 = self.all_options.index(category2)
-                self.overlaps[ind1, ind2] = 1
-                self.overlaps[ind2, ind1] = 1
+        # for category1 in categorieen:
+        #     for category2 in categorieen:
+        #         ind1 = self.all_options.index(category1)
+        #         ind2 = self.all_options.index(category2)
+        #         self.overlaps[ind1, ind2] = 1
+        #         self.overlaps[ind2, ind1] = 1
 
         self.solutions = []
         self.visited = set()
         self.filled = []
 
-        start_S = []
+        self.start_S = []
 
         for i in range(175):
-            start_S.append(None)
+            self.start_S.append(None)
 
         with open("puzzle_filled.csv", "r") as f:
             df = pd.read_csv(f, index_col=0)
@@ -99,7 +98,7 @@ class Solver:
                 answer = answer.Answer
                 answer_int = self.all_options.index(answer)
 
-                start_S[int(cell)] = answer_int
+                self.start_S[int(cell)] = answer_int
                 self.filled.append(answer_int)
 
         if self.settings["use_self_filled"] == "True":
@@ -109,12 +108,12 @@ class Solver:
                     answer = answer.Answer
                     answer_int = self.all_options.index(answer)
 
-                    start_S[int(cell)] = answer_int
+                    self.start_S[int(cell)] = answer_int
                     self.filled.append(answer_int)
 
         # Setup for solving
         self.queue = PriorityQueue()
-        self.queue.put((0, id(start_S), start_S))
+        self.queue.put((0, id(self.start_S), self.start_S))
 
         self.least_unfilled = 300
         self.biggest_queue_size = 0
@@ -122,24 +121,45 @@ class Solver:
         self.found_better_time = time()
         self.found_better_times = []
 
-    def get_settings(self):
+    @staticmethod
+    def get_settings():
         with open("settings.txt", "r") as f:
             settings = json.load(f)
 
         return settings
 
-    def check_stuck(self, S):
-        for cell, value in enumerate(S):
+    def check_stuck(self, S, added_cell):
+        to_check = adjacency_dict[added_cell]
+
+        for cell in to_check:
+            value = S[cell]
+            isCategory = cell in category_cells
+
             if value is None:
                 all_options = []
-                neighs = adjacency_dict[cell]
-                for neigh in neighs:
-                    all_options.append(self.overlaps[neigh])
 
-                options = reduce(np.intersect1d, all_options)
-                # options = [opt for opt in options if opt not in S]
-                if len(options) == 0:
-                    return True
+                to_check = adjacency_dict[cell]
+                if isCategory:
+                    neigh_vals = [S[i] for i in to_check if S[i] is not None and S[i] not in self.category_ind]
+                else:
+                    neigh_vals = [S[i] for i in to_check if S[i] is not None and S[i] in self.category_ind]
+
+                if len(neigh_vals) > 0:
+                    for neigh in neigh_vals:
+                        matches = [i for i, v in enumerate(self.overlaps[neigh]) if v == 1]
+                        all_options.append(matches)
+
+                    options = reduce(np.intersect1d, all_options)
+
+                    if isCategory:
+                        options = [opt for opt in options if opt in self.category_ind]
+                    else:
+                        options = [opt for opt in options if opt in self.answers_ind]
+
+                    options = [option for option in options if option not in S]
+
+                    if len(options) == 0:
+                        return True
 
         return False
 
@@ -198,6 +218,7 @@ class Solver:
                             new_S = copy.copy(S)
                             cell_options[cell] += 1
                             new_S[cell] = antwoord
+
                             if hash(tuple(new_S)) not in visited and not stop_adding:
                                 neighbors.append((antwoord, new_S, matches))
 
@@ -223,6 +244,9 @@ class Solver:
 
             neighs, options, cell_options = self.get_neighbor_states(S, self.visited)
             for added, new_S, matches in neighs:
+                if self.check_stuck(new_S, new_S.index(added)):
+                    continue
+
                 # Add values to heatmap
                 for cell, value in enumerate(new_S):
                     if value not in self.heatmap[cell] and value is not None:
@@ -240,6 +264,9 @@ class Solver:
                     filename = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/visited" + str(int(random.uniform(1000, 2000))) + ".png"
                     self.last_saved = time()
                     plt.plot(self.cell_visited, linewidth=0.5)
+
+                    now = datetime.datetime.now().strftime("%H:%M:%S")
+                    plt.title(now)
                     self.fig.tight_layout()
 
                     plt.savefig(filename)
@@ -253,7 +280,7 @@ class Solver:
                 nones = [v for k, v in enumerate(new_S) if v is None]
                 num_unfilled = len(nones)
                 if num_unfilled < self.least_unfilled:
-                    if self.check_stuck(new_S):
+                    if self.check_stuck(new_S, added):
                         continue
 
                     self.found_better_times.append(time() - self.found_better_time)
@@ -271,7 +298,13 @@ class Solver:
                     self.least_unfilled = num_unfilled
                     self.best_solution = copy.deepcopy(new_S)
 
-                    if time() - self.last_plotted > min(len(self.found_better_times), 30):
+                    if time() - self.last_plotted > min(max(len(self.found_better_times), 5), 30):
+                        self.last_plotted = time()
+                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time)
+
+                if self.start_time is not None:
+                    if time() - self.start_time > 10:
+                        self.start_time = None
                         self.last_plotted = time()
                         self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time)
 
@@ -297,20 +330,18 @@ class Solver:
                     prio = num_unfilled
                 elif self.settings["algorithm"] == "bfs":
                     prio = -num_unfilled
-                elif self.settings["algorithm"] == "a-star":
-                    prio = -matches
 
                 elif "star" in self.settings["algorithm"]:
                     prio = options[added]
 
-                    if self.settings["algorithm"] in ["c-star", "d-star"]:
+                    if self.settings["algorithm"] in ["b-star", "c-star", "d-star", "e-star"]:
                         prio -= matches
 
-                    if self.settings["algorithm"] == "d-star":
-                        prio += cell_options[new_S.index(added)]
-
-                    if self.settings["algorithm"] in ["c-star"]:
+                    if self.settings["algorithm"] in ["c-star", "e-star"]:
                         prio += num_unfilled
+
+                    if self.settings["algorithm"] in ["d-star", "e-star"]:
+                        prio += cell_options[new_S.index(added)]
 
                 self.queue.put((prio, id(new_S), new_S))
 
