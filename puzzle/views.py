@@ -2,6 +2,8 @@ from django.http import HttpResponse
 from .forms import UploadFileForm, ToolForm, SettingsForm, UpdateCellForm
 from .models import clear_files, UploadFile, UploadCategories, UploadSettings
 from django.shortcuts import redirect
+import datetime
+import pathlib
 from PIL import Image
 from django.shortcuts import render
 from django.views import generic
@@ -22,7 +24,7 @@ all_options = get_all_options()
 
 
 def index(request):
-    pages = ["solution", "template", "categories", "answers", "upload", "tool", "settings", "cells", "restart"]
+    pages = ["solution", "old_solutions", "template", "categories", "answers", "upload", "tool", "settings", "cells", "restart"]
 
     response = ""
     for page in pages:
@@ -31,8 +33,29 @@ def index(request):
     return HttpResponse(response)
 
 
+def get_solution_image():
+    files = os.listdir("puzzle/static/puzzle/images")
+    filename = [file for file in files if "latest_solution" in file][0]
+    filename = "/static/puzzle/images/" + filename
+
+    return filename
+
+
+def get_visited_image():
+    files = os.listdir("puzzle/static/puzzle/images")
+    filename = [file for file in files if "visited" in file][0]
+    filename = "/static/puzzle/images/" + filename
+
+    return filename
+
+
 def solution(request):
-    return render(request, 'puzzle/solution.html')
+    context = {
+        "func1": get_solution_image,
+        "func2": get_visited_image
+    }
+
+    return render(request, 'puzzle/solution.html', context)
 
 
 def upload(request):
@@ -79,17 +102,18 @@ def results(request, category_id):
 
 
 def categories(request):
-    categorien = categorien_df
+    categorien = [[i, category.Omschrijving] for i, category in categorien_df.iterrows()]
+    categorien = sorted(categorien, key = lambda x : x[1])
 
     output = ""
-    for i, category in categorien.iterrows():
-        output += '<li><a href="' + str(i) + '">' + category.Omschrijving + '</a>'
+    for i, category in categorien:
+        output += '<li><a href="' + str(i) + '">' + category + '</a>'
 
     return HttpResponse(output)
 
 
 def answers(request):
-    antwoorden = list(antwoord_categorie.keys())
+    antwoorden = sorted(list(antwoord_categorie.keys()))
 
     output = ""
     for antwoord in antwoorden:
@@ -284,3 +308,16 @@ def restart(request):
         f.write("True")
 
     return HttpResponse("Restarted solver!")
+
+
+def old_solutions(request):
+    DIR = "puzzle/static/puzzle/images/old_solutions"
+    old_images = sorted(os.listdir(DIR), key=lambda x : int(x[:-13]))
+    output = ""
+    for image in old_images:
+        url = os.path.join("/static/puzzle/images/old_solutions", image)
+        fname = pathlib.Path(os.path.join(DIR, image))
+        mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime).strftime("%D:%H:%M:%S")
+        output += '<li><a href="' + url + '">' + image + '</a> (' + mtime + ')'
+
+    return HttpResponse(output)

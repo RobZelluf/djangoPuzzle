@@ -16,4 +16,5 @@ urlpatterns = [
     path('settings/', views.settings, name='settings'),
     path('cells/', views.cells, name='cells'),
     path('cells/<int:cell_id>/', views.cell),
+    path('old_solutions/', views.old_solutions, name='old_solutions'),
 ]

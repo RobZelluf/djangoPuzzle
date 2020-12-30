@@ -33,7 +33,8 @@ class UploadSettings(models.Model):
         ('dfs', 'dfs'),
         ('a-star', 'a-star'),
         ('b-star', 'b-star'),
-        ('c-star', 'c-star')
+        ('c-star', 'c-star'),
+        ('d-star', 'd-star')
     )
 
     SELF_FILLED_CHOICES = (

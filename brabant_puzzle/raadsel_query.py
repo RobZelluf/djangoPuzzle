@@ -8,8 +8,6 @@ from brabant_puzzle.fill_answers import filename
 categorie_antwoord = defaultdict(list)
 antwoord_categorie = defaultdict(list)
 
-# filename = fileopenbox("Select Excel file")
-# filename = "/home/rob/Downloads/Brabantraatsel versie 4.xlsm"
 
 with open(filename, "rb") as f:
     antwoorden_df = pd.read_excel(f, "Antwoorden", index_col=0)

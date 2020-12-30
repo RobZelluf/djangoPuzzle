@@ -1,4 +1,5 @@
 from brabant_puzzle.utils import get_all_options
+import matplotlib.pyplot as plt
 from make_puzzle import category_cells
 from fill_answers import categorieen, antwoorden
 from make_puzzle import neighs as adjacency_dict
@@ -13,6 +14,7 @@ import random
 import numpy as np
 from time import time
 import json
+import os
 
 import pandas as pd
 from collections import defaultdict
@@ -23,6 +25,15 @@ class Solver:
         self.filename = get_filename()
         print(self.filename)
         self.plotter = Plotter()
+
+        self.cell_visited = []
+
+        self.heatmap = defaultdict(list)
+        self.last_plotted = time()
+
+        self.fig = plt.figure(figsize=(14, 5))
+        self.last_saved = time()
+        self.best_time = ""
 
         self.all_options = get_all_options()
 
@@ -65,7 +76,7 @@ class Solver:
                 self.overlaps[ind2, ind1] = 1
 
         self.solutions = []
-        self.visited = []
+        self.visited = set()
         self.filled = []
 
         start_S = []
@@ -127,6 +138,7 @@ class Solver:
     def get_neighbor_states(self, S, visited):
         stop_adding = False
         options = defaultdict(int)
+        cell_options = defaultdict(int)
 
         neighbors = []
 
@@ -139,23 +151,34 @@ class Solver:
             if fill is None:
                 if cell in category_cells:
                     for category in [self.all_options.index(x) for x in categorieen]:
+                        times = [time()]
                         valid, matches = self.verify_insert(S, cell, category)
+                        times.append(time())
                         if valid:
+                            cell_options[cell] += 1
                             new_S = copy.copy(S)
+                            times.append(time())
 
                             new_S[cell] = category
-                            if new_S not in visited and not stop_adding:
+
+                            if hash(tuple(new_S)) not in visited and not stop_adding:
                                 neighbors.append((category, new_S, matches))
 
                             options[category] += 1
+
+                            times.append(time())
+
+                            diff = [times[i + 1] - times[i] for i in range(len(times) - 1)]
+                            diff /= np.sum(diff)
                 else:
                     for antwoord in [self.all_options.index(x) for x in antwoorden]:
                         valid, matches = self.verify_insert(S, cell, antwoord)
-                        if valid:
-                            new_S = copy.copy(S)
 
+                        if valid:
+                            cell_options[cell] += 1
+                            new_S = copy.copy(S)
                             new_S[cell] = antwoord
-                            if new_S not in visited and not stop_adding:
+                            if hash(tuple(new_S)) not in visited and not stop_adding:
                                 neighbors.append((antwoord, new_S, matches))
 
                             options[antwoord] += 1
@@ -165,8 +188,8 @@ class Solver:
                     if "star" not in self.settings["algorithm"]:
                         break
 
-        # random.shuffle(neighbors)
-        return neighbors, options
+        random.shuffle(neighbors)
+        return neighbors, options, cell_options
 
     def solve(self):
         t0 = time()
@@ -176,13 +199,43 @@ class Solver:
                 return
 
             prio, _, S = copy.deepcopy(self.queue.get())
-            self.visited.append(S)
+            self.visited.add(hash(tuple(S)))
 
-            neighs, options = self.get_neighbor_states(S, self.visited)
+            neighs, options, cell_options = self.get_neighbor_states(S, self.visited)
             for added, new_S, matches in neighs:
+                # Add values to heatmap
+                for cell, value in enumerate(new_S):
+                    if value not in self.heatmap[cell] and value is not None:
+                        self.heatmap[cell].append(value)
+
+                depth = len([s for s in S if s is not None])
+                self.cell_visited.append(depth)
+                if len(self.cell_visited) > 1000000:
+                    self.cell_visited = self.cell_visited[-1000000:]
+
+                if time() - self.last_saved > 10:
+                    DIR = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images"
+                    curr_files = [file for file in os.listdir(DIR) if "visited" in file]
+
+                    filename = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/visited" + str(int(random.uniform(1000, 2000))) + ".png"
+                    self.last_saved = time()
+                    plt.plot(self.cell_visited, linewidth=0.5)
+                    self.fig.tight_layout()
+
+                    plt.savefig(filename)
+
+                    for file in curr_files:
+                        if file not in filename:
+                            os.remove(os.path.join(DIR, file))
+
+                    self.fig.clf()
+
                 nones = [v for k, v in enumerate(new_S) if v is None]
                 num_unfilled = len(nones)
                 if num_unfilled < self.least_unfilled:
+                    self.last_plotted = time()
+                    self.best_time = datetime.datetime.now().strftime("%H:%M:%S")
+
                     now = datetime.datetime.now().strftime("%H:%M:%S")
 
                     num_filled = len([x for x in new_S if x is not None])
@@ -190,7 +243,11 @@ class Solver:
                     print("Found closer solution:", num_unfilled,  ". Filled:", num_filled, "(", now, ") - (", self.queue.qsize(), ")")
                     self.least_unfilled = num_unfilled
                     self.best_solution = copy.deepcopy(new_S)
-                    self.plotter.plot(new_S, self.all_options)
+                    self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time)
+
+                elif time() - self.last_plotted > 60:
+                    self.last_plotted = time()
+                    self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time)
 
                 if self.queue.qsize() % 100000 == 0 and self.queue.qsize() > self.biggest_queue_size:
                     self.biggest_queue_size = self.queue.qsize()
@@ -212,14 +269,17 @@ class Solver:
                 elif self.settings["algorithm"] == "a-star":
                     prio = -matches
 
-                elif self.settings["algorithm"] == "b-star" or self.settings["algorithm"] == "c-star":
+                elif "star" in self.settings["algorithm"]:
                     if matches == 0:
                         prio = options[added]
                     else:
-                        prio = options[added] / matches
+                        prio = options[added] - matches
 
-                    if self.settings["algorithm"] == "c-star":
-                        prio = num_unfilled * prio
+                    if self.settings["algorithm"] == "d-star":
+                        prio += cell_options[new_S.index(added)]
+
+                    if self.settings["algorithm"] in ["c-star", "d-star"]:
+                        prio += num_unfilled
 
                 self.queue.put((prio, id(new_S), new_S))
 
