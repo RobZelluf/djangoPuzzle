@@ -6,7 +6,7 @@ from brabant_puzzle.make_puzzle import neighs as adjacency_dict
 from brabant_puzzle.plot_hexagon import Plotter
 from brabant_puzzle.utils import get_filename, get_data
 import copy
-from queue import PriorityQueue
+from queue import PriorityQueue, Queue
 import pickle as p
 import datetime
 import random
@@ -232,6 +232,56 @@ class Solver:
         random.shuffle(neighbors)
         return neighbors, options, cell_options
 
+    def presolve2(self, state, visited, best, recur):
+        recur += 1
+
+        best = max(best, len([s for s in state if s is not None]))
+        print("Presolve:", best)
+        neighs, options, cell_options = self.get_neighbor_states(state, visited)
+
+        for i, (added, new_S, matches) in enumerate(neighs):
+            visited.add(hash(tuple(new_S)))
+            if len([c for c in new_S if c is not None]) == 0:
+                print("Solved presolve!")
+                return True
+
+            if options[added] <= 30:
+                self.presolve2(new_S, visited, best, recur)
+
+    def presolve(self):
+        queue = Queue()
+        queue.put(copy.deepcopy(self.start_S))
+        best = 0
+
+        while not queue.empty():
+            S = copy.deepcopy(queue.get())
+
+            best = max(len([s for s in S if s is not None]) - 6, best)
+            print("Presolve:", best, "/ 169 (", queue.qsize(), ")")
+
+            neighs, options, cell_options = self.get_neighbor_states(S, set())
+            for added, new_S, matches in neighs:
+
+                if self.check_stuck(new_S, new_S.index(added)):
+                    continue
+
+                nones = [v for k, v in enumerate(new_S) if v is None]
+                num_unfilled = len(nones)
+
+                if num_unfilled == 0:
+                    print("Solved!")
+                    self.solutions.append(new_S)
+                    print("Number of solutions:", len(self.solutions))
+                    with open("solved.p", "wb") as f:
+                        p.dump(self.solutions, f)
+
+                    return True
+
+                if options[added] == 1:
+                    queue.put(new_S)
+
+        return False
+
     def solve(self):
         t0 = time()
         while not self.queue.empty():
@@ -353,6 +403,7 @@ class Solver:
 if __name__ == "__main__":
     while True:
         solver = Solver()
+
         start_time = time()
         while True:
             solver.solve()
