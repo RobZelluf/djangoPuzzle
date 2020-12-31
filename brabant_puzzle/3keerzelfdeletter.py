@@ -1,19 +1,20 @@
 from fill_answers import antwoorden
 
-letters = "abcdefghijklmnopqrstuvwxyz"
+letters = "0123456789"
+getallen = ["een", "twee", "drie", "vier", "vijf", "zes", "zeven", "acht", "negen", "tien"]
 
 count = 0
 found = []
 
 for antwoord in antwoorden:
-    antwoord_split = [x for x in antwoord.lower()]
-    for letter in letters:
-        matching = [x for x in antwoord_split if x == letter]
-        if len(matching) == 3:
-            count += 1
+    for getal in getallen:
+        if getal in antwoord:
             found.append(antwoord)
-            break
+
+    # antwoord_split = [s.lower() for s in antwoord if s.lower() in letters]
+    # if len(antwoord_split) > 0:
+    #     found.append(antwoord)
 
 print(sorted(found))
-print(count)
+print(len(found))
 

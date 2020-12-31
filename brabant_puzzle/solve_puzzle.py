@@ -11,7 +11,7 @@ import pickle as p
 import datetime
 import random
 import numpy as np
-from time import time
+from time import time, sleep
 import json
 import os
 from functools import reduce
@@ -140,23 +140,24 @@ class Solver:
 
                 to_check = adjacency_dict[cell]
                 if isCategory:
-                    neigh_vals = [S[i] for i in to_check if S[i] is not None and S[i] not in self.category_ind]
+                    neigh_vals = [S[i] for i in to_check if S[i] is not None]
                 else:
                     neigh_vals = [S[i] for i in to_check if S[i] is not None and S[i] in self.category_ind]
 
                 if len(neigh_vals) > 0:
                     for neigh in neigh_vals:
-                        matches = [i for i, v in enumerate(self.overlaps[neigh]) if v == 1]
+                        matches = np.where(self.overlaps[neigh] == 1)
+                        # matches = [i for i, v in enumerate(self.overlaps[neigh]) if v == 1]
                         all_options.append(matches)
+
+                    if isCategory:
+                        all_options.append(self.category_ind)
+                    else:
+                        all_options.append(self.answers_ind)
 
                     options = reduce(np.intersect1d, all_options)
 
-                    if isCategory:
-                        options = [opt for opt in options if opt in self.category_ind]
-                    else:
-                        options = [opt for opt in options if opt in self.answers_ind]
-
-                    options = [option for option in options if option not in S]
+                    options = np.setdiff1d(np.array(options), np.array([s for s in S if s is not None])).tolist()
 
                     if len(options) == 0:
                         return True
@@ -194,6 +195,9 @@ class Solver:
             lst = enumerate(S)
 
         for cell, fill in lst:
+            # if cell == 23 or cell == 22 or cell == 21 or cell == 12 or cell == 31 or cell == 32:
+            #     continue
+
             if fill is None:
                 if cell in category_cells:
                     for category in self.category_ind:
@@ -225,75 +229,25 @@ class Solver:
                             options[antwoord] += 1
 
                 if self.settings["mode"] != "random" and not stop_adding:
-                    stop_adding = True
-                    if "star" not in self.settings["algorithm"]:
-                        break
+                    break
 
         random.shuffle(neighbors)
         return neighbors, options, cell_options
 
-    def presolve2(self, state, visited, best, recur):
-        recur += 1
-
-        best = max(best, len([s for s in state if s is not None]))
-        print("Presolve:", best)
-        neighs, options, cell_options = self.get_neighbor_states(state, visited)
-
-        for i, (added, new_S, matches) in enumerate(neighs):
-            visited.add(hash(tuple(new_S)))
-            if len([c for c in new_S if c is not None]) == 0:
-                print("Solved presolve!")
-                return True
-
-            if options[added] <= 30:
-                self.presolve2(new_S, visited, best, recur)
-
-    def presolve(self):
-        queue = Queue()
-        queue.put(copy.deepcopy(self.start_S))
-        best = 0
-
-        while not queue.empty():
-            S = copy.deepcopy(queue.get())
-
-            best = max(len([s for s in S if s is not None]) - 6, best)
-            print("Presolve:", best, "/ 169 (", queue.qsize(), ")")
-
-            neighs, options, cell_options = self.get_neighbor_states(S, set())
-            for added, new_S, matches in neighs:
-
-                if self.check_stuck(new_S, new_S.index(added)):
-                    continue
-
-                nones = [v for k, v in enumerate(new_S) if v is None]
-                num_unfilled = len(nones)
-
-                if num_unfilled == 0:
-                    print("Solved!")
-                    self.solutions.append(new_S)
-                    print("Number of solutions:", len(self.solutions))
-                    with open("solved.p", "wb") as f:
-                        p.dump(self.solutions, f)
-
-                    return True
-
-                if options[added] == 1:
-                    queue.put(new_S)
-
-        return False
-
     def solve(self):
+        avg_time = 0
         t0 = time()
         while not self.queue.empty():
             diff = time() - t0
             if diff > 10:
-                return
+                return False
 
             prio, _, S = copy.deepcopy(self.queue.get())
             self.visited.add(hash(tuple(S)))
 
             neighs, options, cell_options = self.get_neighbor_states(S, self.visited)
             for added, new_S, matches in neighs:
+                self.visited.add(hash(tuple(S)))
                 if self.check_stuck(new_S, new_S.index(added)):
                     continue
 
@@ -308,24 +262,7 @@ class Solver:
                     self.cell_visited = self.cell_visited[-1000000:]
 
                 if time() - self.last_saved > depth:
-                    DIR = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images"
-                    curr_files = [file for file in os.listdir(DIR) if "visited" in file]
-
-                    filename = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/visited" + str(int(random.uniform(1000, 2000))) + ".png"
-                    self.last_saved = time()
-                    plt.plot(self.cell_visited, linewidth=0.5)
-
-                    now = datetime.datetime.now().strftime("%H:%M:%S")
-                    plt.title(now)
-                    self.fig.tight_layout()
-
-                    plt.savefig(filename)
-
-                    for file in curr_files:
-                        if file not in filename:
-                            os.remove(os.path.join(DIR, file))
-
-                    self.fig.clf()
+                    self.plot_progress()
 
                 nones = [v for k, v in enumerate(new_S) if v is None]
                 num_unfilled = len(nones)
@@ -343,8 +280,9 @@ class Solver:
                     now = datetime.datetime.now().strftime("%H:%M:%S")
 
                     num_filled = len([x for x in new_S if x is not None])
+                    word_added = self.all_options[added]
 
-                    print("Found closer solution:", num_unfilled,  ". Filled:", num_filled, "(", now, ") - (", self.queue.qsize(), ")")
+                    print("Found closer solution:", num_unfilled,  ". Filled:", word_added, "(", new_S.index(added), ")(", now, ") - (", self.queue.qsize(), ")")
                     self.least_unfilled = num_unfilled
                     self.best_solution = copy.deepcopy(new_S)
 
@@ -374,7 +312,7 @@ class Solver:
                     with open("solved.p", "wb") as f:
                         p.dump(self.solutions, f)
 
-                    continue
+                    exit()
 
                 if self.settings["algorithm"] == "dfs":
                     prio = num_unfilled
@@ -399,14 +337,39 @@ class Solver:
         with open("partially_solved.p", "wb") as f:
             p.dump(self.best_solution, f)
 
+        self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, True)
+        self.plot_progress()
+        return True
+
+    def plot_progress(self):
+        DIR = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images"
+        curr_files = [file for file in os.listdir(DIR) if "visited" in file]
+        filename = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/visited" + str(
+            int(random.uniform(1000, 2000))) + ".png"
+        self.last_saved = time()
+        plt.plot(self.cell_visited, linewidth=0.5)
+        now = datetime.datetime.now().strftime("%H:%M:%S")
+        plt.title(now)
+        self.fig.tight_layout()
+        plt.savefig(filename)
+        for file in curr_files:
+            if file not in filename:
+                os.remove(os.path.join(DIR, file))
+        self.fig.clf()
+
 
 if __name__ == "__main__":
     while True:
         solver = Solver()
-
         start_time = time()
+
+        stuck = False
         while True:
-            solver.solve()
+            if not stuck:
+                stuck = solver.solve()
+            else:
+                print("Stuck: waiting for new settings")
+                sleep(5)
 
             if solver.filename != get_filename():
                 print("Source excel file changed!")

@@ -320,7 +320,7 @@ def restart(request):
     with open('brabant_puzzle/restart.txt', "w") as f:
         f.write("True")
 
-    return HttpResponse("Restarted solver!")
+    return redirect("/puzzle/solution")
 
 
 def old_solutions(request):

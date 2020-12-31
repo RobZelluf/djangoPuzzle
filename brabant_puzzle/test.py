@@ -1,0 +1,7 @@
+print(hash((1, 4, 2, 3, 5)))
+print(hash((1, 4, 2, 5, 3)))
+print(hash((4, 1, 2, 5, 3)))
+print(hash((4, 1, 2, None, 3)))
+print(hash((4, None, 2, None, 3)))
+print(hash((1, None, 2, 3, 5)))
+print(hash((1, 2, None, 5, 3)))

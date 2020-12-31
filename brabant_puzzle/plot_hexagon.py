@@ -116,7 +116,7 @@ class Plotter:
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
 
-    def plot(self, S, all_options, heatmap=None, best_time="", avg_time=-1):
+    def plot(self, S, all_options, heatmap=None, best_time="", avg_time=-1, stuck=False):
         remove_filenames = []
 
         if not self.template:
@@ -187,18 +187,21 @@ class Plotter:
         self.avg_time.set_text("Avg improvement time: " + str(round(float(avg_time), 1)) + " seconds.")
 
         self.fig.tight_layout()
+
+        if stuck:
+            self.ax.text(-8, -0.6, "STUCK :(", size=60, fontsize=60, weight='bold')
+
+        for f in remove_filenames:
+            os.remove(os.path.join(DIR, f))
+
         self.fig.savefig(self.filepath)
 
         if not self.template:
-            now = datetime.datetime.now().strftime("%H:%M:%S")
             filled = len([s for s in S if s is not None])
             filename = os.path.join(self.old_solutions_path, str(filled) + "_solution.png")
             self.fig.savefig(filename)
 
         plt.close(self.fig)
-
-        for f in remove_filenames:
-            os.remove(os.path.join(DIR, f))
 
 
 if __name__ == "__main__":
