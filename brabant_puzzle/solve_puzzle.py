@@ -26,6 +26,8 @@ class Solver:
 
         self.start_time = time()
         self.filename = get_filename()
+        print(self.filename)
+
         self.plotter = Plotter()
 
         self.cell_visited = []

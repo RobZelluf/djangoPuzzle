@@ -1,5 +1,3 @@
-import test
-
 from brabant_puzzle.solve_puzzle import Solver
 
 
@@ -22,10 +20,6 @@ def test_check_stuck():
     S[11] = solver.all_options.index("Hilvarenbeek")
 
     assert not solver.check_stuck(S, 11)
-
-    S[6] = solver.all_options.index("Biestse Boulers")
-
-    assert solver.check_stuck(S, 11)
 
 
 test_check_stuck()
