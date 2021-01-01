@@ -1,0 +1,34 @@
+{% load static %}
+
+<link rel="stylesheet" type="text/css" href="{% static 'puzzle/style.css' %}">
+{% block nav %}
+<div class="topnav">
+    <a href="/puzzle/">Home</a>
+    <a href="/puzzle/solution/">Solution</a>
+    <a href="/puzzle/terminal/">Terminal</a>
+    <a href="/puzzle/categories/">Categories</a>
+    <a href="/puzzle/answers/">Answers</a>
+    <a href="/puzzle/cells/">Cells</a>
+    <a href="/puzzle/upload/">Upload</a>
+    <a href="/puzzle/template/">Template</a>
+
+  <div class="dropdown">
+    <button class="dropbtn">Tools
+      <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-content">
+        <a href="/puzzle/tool/">Supertool</a>
+        <a href="/puzzle/heatmap/">Heatmap</a>
+        <a href="/puzzle/superheatmap/">Superheatmap</a>
+        <a href="/puzzle/old_solutions/">Old Solutions</a>
+        <a href="/puzzle/finished_solutions/">Finished Solutions</a>
+    </div>
+  </div>
+    <a href="/puzzle/settings/">Settings</a>
+    <a href="/puzzle/restart/">Restart</a>
+
+</div>
+{% endblock %}
+
+{% block content %}
+{% endblock %}

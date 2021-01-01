@@ -29,6 +29,8 @@ class Solver:
         self.filename = get_filename()
         self.plotter = Plotter()
 
+        self.balance = True
+
         self.cell_visited = []
 
         self.heatmap = defaultdict(list)
@@ -248,7 +250,6 @@ class Solver:
         return neighbors, options, cell_options
 
     def solve(self):
-        avg_time = 0
         t0 = time()
         while not self.queue.empty():
             diff = time() - t0
@@ -270,15 +271,14 @@ class Solver:
                 if len(self.cell_visited) > 1000000:
                     self.cell_visited = self.cell_visited[-1000000:]
 
-                if time() - self.last_saved > depth:
-                    self.plot_progress()
-
                 nones = [v for k, v in enumerate(new_S) if v is None]
                 num_unfilled = len(nones)
                 if num_unfilled < self.least_unfilled:
                     if self.settings["double_check"]:
                         if self.check_stuck(new_S, added):
                             continue
+
+                    self.balance = False
 
                     with open('latest_state.p', 'wb') as f:
                         p.dump(new_S, f)
@@ -290,8 +290,6 @@ class Solver:
 
                     self.found_better_times.append(time() - self.found_better_time)
                     self.found_better_time = time()
-
-                    avg_time = float(np.mean(self.found_better_times))
 
                     self.best_time = datetime.datetime.now().strftime("%H:%M:%S")
 
@@ -310,25 +308,23 @@ class Solver:
                     self.best_solution = copy.deepcopy(new_S)
 
                     if time() - self.last_plotted > min(max(len(self.found_better_times), 5), 30):
-                        self.last_plotted = time()
-                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
-                        self.save_heatmap()
+                        self.plot(new_S)
 
-                elif num_unfilled == self.least_unfilled:
-                    # Add values to heatmap
-                    self.update_heatmap(new_S)
+                else:
+                    if num_unfilled == self.least_unfilled:
+                        # Add values to heatmap
+                        self.update_heatmap(new_S)
 
-                if self.start_time is not None:
-                    if time() - self.start_time > 10:
-                        self.start_time = None
-                        self.last_plotted = time()
-                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
+                    if not self.balance and time() - self.found_better_time > 5:
+                        print("Balanced at", len([j for j in self.best_solution if j is not None]) - 6, "filled - Plotting!")
+                        self.balance = True
 
-                elif time() - self.last_plotted > 60:
-                    self.last_plotted = time()
-                    avg_time = float(np.mean(self.found_better_times))
-                    self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
-                    self.save_heatmap()
+                        self.plot(self.best_solution)
+                        self.plot_progress()
+
+                if time() - self.last_plotted > 120:
+                    self.plot(new_S)
+                    self.plot_progress()
 
                 if self.queue.qsize() % 100000 == 0 and self.queue.qsize() > self.biggest_queue_size:
                     self.biggest_queue_size = self.queue.qsize()
@@ -371,10 +367,16 @@ class Solver:
         with open('terminal.txt', "a") as f:
             f.write("STUCK!\n")
 
-        self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, True, self.queue.qsize())
+        self.plot(self.best_solution, stuck=True)
         self.plot_progress()
-        self.save_heatmap()
         return True
+
+    def plot(self, new_S, stuck=False):
+        avg_time = float(np.mean(self.found_better_times))
+
+        self.last_plotted = time()
+        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time, stuck, self.queue.qsize())
+        self.save_heatmap()
 
     def update_heatmap(self, new_S):
         for cell, value in enumerate(new_S):

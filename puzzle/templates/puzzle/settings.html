@@ -1,3 +1,6 @@
+{% extends "puzzle/topnav.html" %}
+{% block content %}
+
 <h1>Settings</h1>
 
 <!-- <form method="post" enctype="multipart/form-data">
@@ -10,6 +13,9 @@
 {{ curent_mode }}
 
 <br>
+<head>
+    <title>Settings</title>
+</head>
 
 <b>Current algorithm:</b>
 {{ current_algorithm }}
@@ -29,4 +35,6 @@
     {{ form }}
     <button type="submit">Upload</button>
 </form>
+
+{% endblock %}
 

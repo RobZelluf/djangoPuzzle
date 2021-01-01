@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import TemplateView
 
 from . import views
 
@@ -20,5 +21,6 @@ urlpatterns = [
     path('cells/', views.cells, name='cells'),
     path('cells/<int:cell_id>/', views.cell),
     path('old_solutions/', views.old_solutions, name='old_solutions'),
-    path('finished_solutions/', views.finished_solutions, name='finished_solutions')
+    path('finished_solutions/', views.finished_solutions, name='finished_solutions'),
+    path('nav/', TemplateView.as_view(template_name='puzzle/topnav.html'))
 ]

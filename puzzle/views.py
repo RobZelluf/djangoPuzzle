@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from .forms import UploadFileForm, ToolForm, SettingsForm, UpdateCellForm
 from .models import clear_files, UploadFile, UploadCategories, UploadSettings
 from django.shortcuts import redirect
@@ -25,13 +25,18 @@ all_options = get_all_options()
 
 
 def index(request):
-    pages = ["solution", "old_solutions", "finished_solutions", "terminal", "template", "heatmap", "categories", "answers", "upload", "tool", "settings", "cells", "restart"]
+    pages = ["solution", "old_solutions", "finished_solutions", "terminal", "template", "heatmap", "superheatmap", "categories", "answers", "upload", "tool", "settings", "cells", "restart"]
 
     response = ""
     for page in pages:
-        response += '<li style="font-size:30px"><a href="' + page + '/">' + page + '</a>'
+        string = " ".join([x.capitalize() for x in page.split("_")])
+        response += '<li style="font-size:30px"><a href="' + page + '/">' + string + '</a>'
 
-    return HttpResponse(response)
+    context = {
+        "content": response
+    }
+
+    return render(request, "puzzle/index.html", context)
 
 
 def get_solution_image():
@@ -61,8 +66,9 @@ def solution(request):
 
     left = sorted([v for i, v in enumerate(all_options) if i not in new_S])
 
+
     out2 = "<b>Unfilled: </b>"
-    out = "<ul>"
+    out = '<ul style="margin: auto; display: inline-block; list-style-type: none;">'
     for word in left:
         out2 += word + ", "
         out += "<li>" + word + "</li>"
@@ -139,7 +145,7 @@ def categories(request):
     for i, category in categorien:
         output += '<li><a href="' + str(i) + '">' + category + '</a>'
 
-    return HttpResponse(output)
+    return render(request, 'puzzle/categories.html', {"content": output})
 
 
 def answers(request):
@@ -150,7 +156,7 @@ def answers(request):
     for antwoord in antwoorden:
         output += '<li><a href="' + antwoord + '">' + antwoord + '</a>'
 
-    return HttpResponse(output)
+    return render(request, 'puzzle/answers.html', {"content": output})
 
 
 def answer_results(request, answer):
@@ -311,7 +317,12 @@ def cells(request):
     for cell in cells:
         output += '<li><a href="' + str(cell) + '">Cell ' + str(cell) + '</a>'
 
-    return HttpResponse(output)
+    context = {
+        "title": "Cells",
+        "content": output
+    }
+
+    return render(request, 'puzzle/base.html', context)
 
 
 def template(request):
@@ -346,7 +357,7 @@ def restart(request):
     with open('brabant_puzzle/restart.txt', "w") as f:
         f.write("True")
 
-    return redirect("/puzzle/solution")
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
 
 def old_solutions(request):
@@ -359,7 +370,12 @@ def old_solutions(request):
         mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime).strftime("%D-%H:%M:%S")
         output += '<li><a href="' + url + '">' + image + '</a> (' + mtime + ')'
 
-    return HttpResponse(output)
+    context = {
+        "title": "Old solutions",
+        "content": output
+    }
+
+    return render(request, 'puzzle/base.html', context)
 
 
 def finished_solutions(request):
@@ -367,12 +383,16 @@ def finished_solutions(request):
 
     output = ""
     for path in old_images:
-
-        url = "/".join(str(path).split("/")[1:])
+        url = "/static/puzzle/images/finished_solutions/" + path.name
         mtime = datetime.datetime.fromtimestamp(path.stat().st_mtime).strftime("%D-%H:%M:%S")
         output += '<li><a href="' + url + '">' + path.name + '</a> (' + mtime + ')'
 
-    return HttpResponse(output)
+    context = {
+        "title": "Finished Solutions",
+        "content": output
+    }
+
+    return render(request, 'puzzle/base.html', context)
 
 
 def terminal(request):
@@ -412,6 +432,7 @@ def heatmap(request):
         out += "</ol>"
 
     context = {
+        "title": "Heatmap",
         "out" : out
     }
 
@@ -443,6 +464,29 @@ def superheatmap(request):
             for option in v:
                 array[int(k), opties.index(option)] += 1
 
+    cells_matches = [[i, len(np.where(cell_options > 0)[0]), cell_options.max()] for i, cell_options in enumerate(array)]
+    cells_matches = sorted(cells_matches, key=lambda x: (x[1], -x[2]))
+
+    with open('brabant_puzzle/self_filled.csv', 'r') as f:
+        self_filled = pd.read_csv(f, index_col=0)
+
+    for i, _, _ in cells_matches:
+        if i in list(self_filled.index):
+            continue
+
+        cell_options = array[i]
+        options = np.where(cell_options > 0)
+        if len(options[0]) > 0:
+            url = reverse(cell, kwargs={'cell_id': str(i)})
+            out += '<a href="' + url + '">Cell ' + str(i) + '</a></ol>'
+
+            sorted_options = sorted(options[0], key=lambda x : array[i, x], reverse=True)
+
+            for option in sorted_options:
+                out += "<li>" + opties[option] + " (" + str(int(array[i, option])) + ")</li>"
+
+            out += "</ol>"
+
     out += "<table border=1><tr><th>Cell</th>"
 
     for optie in opties:
@@ -458,6 +502,7 @@ def superheatmap(request):
         out += "</tr>"
 
     context = {
+        "title": "Superheatmap",
         "out" : out
     }
 

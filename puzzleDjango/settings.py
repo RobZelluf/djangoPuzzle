@@ -33,7 +33,6 @@ ALLOWED_HOSTS = ['0.0.0.0', '192.168.178.15', '192.168.0.103', '94.215.187.111']
 
 INSTALLED_APPS = [
     'puzzle',
-    'puzzle2',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
