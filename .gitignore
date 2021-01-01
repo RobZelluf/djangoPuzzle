@@ -5,3 +5,5 @@
 /puzzle/static/puzzle/images/
 !**/__pycache__/
 /brabant_puzzle/__pycache__/
+/brabant_puzzle/self_filled.csv
+/puzzle/__pycache__/
