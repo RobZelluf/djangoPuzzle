@@ -142,23 +142,24 @@ class Solver:
 
                 to_check = adjacency_dict[cell]
                 if isCategory:
-                    neigh_vals = [S[i] for i in to_check if S[i] is not None and S[i] not in self.category_ind]
+                    neigh_vals = [S[i] for i in to_check if S[i] is not None]
                 else:
                     neigh_vals = [S[i] for i in to_check if S[i] is not None and S[i] in self.category_ind]
 
                 if len(neigh_vals) > 0:
                     for neigh in neigh_vals:
-                        matches = [i for i, v in enumerate(self.overlaps[neigh]) if v == 1]
+                        matches = np.where(self.overlaps[neigh] == 1)
+                        # matches = [i for i, v in enumerate(self.overlaps[neigh]) if v == 1]
                         all_options.append(matches)
+
+                    if isCategory:
+                        all_options.append(self.category_ind)
+                    else:
+                        all_options.append(self.answers_ind)
 
                     options = reduce(np.intersect1d, all_options)
 
-                    if isCategory:
-                        options = [opt for opt in options if opt in self.category_ind]
-                    else:
-                        options = [opt for opt in options if opt in self.answers_ind]
-
-                    options = [option for option in options if option not in S]
+                    options = np.setdiff1d(np.array(options), np.array([s for s in S if s is not None])).tolist()
 
                     if len(options) == 0:
                         return True
