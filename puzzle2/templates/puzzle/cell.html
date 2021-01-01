@@ -1,0 +1,15 @@
+<h1>Cell {{ cell_id }}: {{ type }}</h1>
+<b>Current answer:</b> {{ curr_value }}
+
+<!-- <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="myfile">
+    <button type="submit">Upload</button>
+</form> -->
+
+<form method="post", enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Upload</button>
+</form>
+
