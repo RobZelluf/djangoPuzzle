@@ -4,3 +4,4 @@
 /key.txt
 /puzzle/static/puzzle/images/
 !**/__pycache__/
+/brabant_puzzle/__pycache__/

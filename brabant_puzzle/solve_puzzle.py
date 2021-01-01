@@ -246,8 +246,8 @@ class Solver:
 
             neighs, options, cell_options = self.get_neighbor_states(S, self.visited)
             for added, new_S, matches in neighs:
-                if self.check_stuck(new_S, new_S.index(added)):
-                    continue
+                # if self.check_stuck(new_S, new_S.index(added)):
+                #     continue
 
                 # Add values to heatmap
                 for cell, value in enumerate(new_S):
@@ -282,8 +282,8 @@ class Solver:
                 nones = [v for k, v in enumerate(new_S) if v is None]
                 num_unfilled = len(nones)
                 if num_unfilled < self.least_unfilled:
-                    if self.check_stuck(new_S, added):
-                        continue
+                    # if self.check_stuck(new_S, added):
+                    #     continue
 
                     self.found_better_times.append(time() - self.found_better_time)
                     self.found_better_time = time()
