@@ -2,3 +2,5 @@
 /venv/
 /puzzle/migrations/
 /key.txt
+/puzzle/static/puzzle/images/
+!**/__pycache__/

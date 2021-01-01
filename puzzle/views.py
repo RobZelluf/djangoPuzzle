@@ -246,7 +246,8 @@ def cell(request, cell_id):
         options = [k for k, v in antwoord_categorie.items() if k not in all_self_filled and k not in all_prefilled]
 
     options = sorted(options)
-    options.insert(0, "--Remove--")
+    if curr_value is not None:
+        options.insert(0, "--Remove--")
 
     if request.method == "POST":
         form = UpdateCellForm(request.POST, request.FILES, options=options, curr_value=curr_value)
@@ -259,7 +260,7 @@ def cell(request, cell_id):
                 df.loc[cell_id] = answer
 
             df.to_csv("brabant_puzzle/self_filled.csv")
-            return redirect("/puzzle/template")
+            return redirect("/puzzle/cells")
 
     else:
         form = UpdateCellForm(options=options, curr_value=curr_value)
@@ -330,7 +331,7 @@ def old_solutions(request):
     for image in old_images:
         url = os.path.join("/static/puzzle/images/old_solutions", image)
         fname = pathlib.Path(os.path.join(DIR, image))
-        mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime).strftime("%D:%H:%M:%S")
+        mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime).strftime("%D-%H:%M:%S")
         output += '<li><a href="' + url + '">' + image + '</a> (' + mtime + ')'
 
     return HttpResponse(output)

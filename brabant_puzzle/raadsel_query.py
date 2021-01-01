@@ -3,10 +3,11 @@ import pandas as pd
 from collections import defaultdict
 import numpy as np
 from pprint import pprint
-from brabant_puzzle.fill_answers import filename
+from brabant_puzzle.utils import get_data
 
 
 if __name__ == "__main__":
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
     while True:
         cat1 = int(input("Categorie nummer 1:"))
         cat2 = int(input("Categorie nummer 2:"))

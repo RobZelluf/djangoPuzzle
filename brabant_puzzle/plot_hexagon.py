@@ -108,10 +108,10 @@ class Plotter:
         for i, category in enumerate(self.filled[-6:]):
             self.ax.text(positions[i][0], positions[i][1], category, size=50, fontsize=50, ha='center', va='center', rotation=rotations[i], rotation_mode='anchor', color='red', weight='bold')
 
-        self.best_time = self.ax.text(-8, 0.6, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
-        self.last_saved = self.ax.text(-8, 0.3, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
-        self.stats = self.ax.text(-8, 0.0, "", size=30, fontsize=30)
-        self.avg_time = self.ax.text(-8, -0.3, "", size=30, fontsize=30)
+        self.best_time = self.ax.text(-8, 0.9, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
+        self.last_saved = self.ax.text(-8, 0.6, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
+        self.stats = self.ax.text(-8, 0.3, "", size=30, fontsize=30)
+        self.avg_time = self.ax.text(-8, 0, "", size=30, fontsize=30)
 
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
@@ -140,23 +140,20 @@ class Plotter:
 
         if heatmap is not None:
             heats = [len(v) for k, v in heatmap.items()]
-            n_colors = max(heats) - min(heats)
-
             category_heats = [len(v) for k, v in heatmap.items() if k in category_cells]
-            n_cat_colors = max(category_heats) - min(category_heats)
 
-            norm = matplotlib.colors.Normalize(vmin=min(heats), vmax=max(heats) * 1.5)
-            cat_norm = matplotlib.colors.Normalize(vmin=min(category_heats), vmax=max(category_heats) * 1.5)
+            norm = matplotlib.colors.Normalize(vmin=min(heats), vmax=max(heats))
+            cat_norm = matplotlib.colors.Normalize(vmin=min(category_heats), vmax=max(category_heats))
 
         # Add some coloured hexagons
         for i, (x, y, l) in enumerate(zip(self.hcoord, self.vcoord, labels)):
 
             if heatmap is not None:
                 if i in category_cells:
-                    cmap =cm.get_cmap("Oranges_r", n_colors)
+                    cmap =cm.get_cmap("Oranges_r")
                     color = cmap(cat_norm(heats[i]))
                 else:
-                    cmap = cm.get_cmap("Greens_r", n_cat_colors)
+                    cmap = cm.get_cmap("Greens_r")
                     color = cmap(norm(heats[i]))
 
             # Also add a text label

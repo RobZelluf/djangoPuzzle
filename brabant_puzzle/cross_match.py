@@ -6,9 +6,17 @@ from pprint import pprint
 from brabant_puzzle.fill_answers import filename
 from tabulate import tabulate
 from brabant_puzzle.utils import get_data
+import pandas as pd
 
 
 def find_crossmatch(categories):
+    with open('brabant_puzzle/puzzle_filled.csv', 'r') as f:
+        df = pd.read_csv(f, index_col=0)
+
+    print(df)
+
+
+
     antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
     text_categories = [categorien_df.loc[x].Omschrijving for x in categories]
 
@@ -49,7 +57,8 @@ def find_crossmatch(categories):
             for match in matches:
                 row.append(match)
 
-            data.append(row)
+            if category not in list(df.Answer):
+                data.append(row)
 
     return data
 
