@@ -15,6 +15,7 @@ from brabant_puzzle.plot_hexagon import Plotter
 import os
 import json
 import pandas as pd
+import numpy as np
 
 from tabulate import tabulate
 
@@ -23,7 +24,7 @@ all_options = get_all_options()
 
 
 def index(request):
-    pages = ["solution", "old_solutions", "template", "categories", "answers", "upload", "tool", "settings", "cells", "restart"]
+    pages = ["solution", "old_solutions", "finished_solutions", "terminal", "template", "heatmap", "categories", "answers", "upload", "tool", "settings", "cells", "restart"]
 
     response = ""
     for page in pages:
@@ -187,12 +188,14 @@ def settings(request):
             algorithm = form.cleaned_data["algorithm"]
             timeout = form.cleaned_data["timeout"]
             use_self_filled = form.cleaned_data["use_self_filled"]
+            double_check = form.cleaned_data["double_check"]
 
             data = dict(
                 mode=mode,
                 algorithm=algorithm,
                 timeout=timeout,
-                use_self_filled=use_self_filled
+                use_self_filled=use_self_filled,
+                double_check=double_check
             )
 
             with open('brabant_puzzle/settings.txt', 'w') as f:
@@ -211,7 +214,8 @@ def settings(request):
         'curent_mode': settings["mode"],
         'current_algorithm': settings["algorithm"],
         'current_timeout': settings["timeout"],
-        'current_use_self_filled': settings["use_self_filled"]
+        'current_use_self_filled': settings["use_self_filled"],
+        'current_double_check': settings["double_check"]
     }
 
     return render(request, 'puzzle/settings.html', context)
@@ -246,14 +250,16 @@ def cell(request, cell_id):
         options = [k for k, v in antwoord_categorie.items() if k not in all_self_filled and k not in all_prefilled]
 
     options = sorted(options)
-    options.insert(0, "--Remove--")
+    if curr_value is not None:
+        options.insert(0, "--Remove--")
 
     if request.method == "POST":
         form = UpdateCellForm(request.POST, request.FILES, options=options, curr_value=curr_value)
         if form.is_valid():
             answer = form.cleaned_data["answer"]
-            if answer == "--Remove--" and curr_value is not None:
-                df = df.drop(cell_id)
+            if answer == "--Remove--":
+                if curr_value is not None:
+                    df = df.drop(cell_id)
 
             else:
                 df.loc[cell_id] = answer
@@ -334,3 +340,103 @@ def old_solutions(request):
         output += '<li><a href="' + url + '">' + image + '</a> (' + mtime + ')'
 
     return HttpResponse(output)
+
+
+def finished_solutions(request):
+    DIR = "puzzle/static/puzzle/images/finished_solutions"
+    old_images = sorted(os.listdir(DIR), key=lambda x : int(x[9:-19]))
+    output = ""
+    for image in old_images:
+        url = os.path.join("/static/puzzle/images/finished_solutions", image)
+        fname = pathlib.Path(os.path.join(DIR, image))
+        mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime).strftime("%D-%H:%M:%S")
+        output += '<li><a href="' + url + '">' + image + '</a> (' + mtime + ')'
+
+    return HttpResponse(output)
+
+
+def terminal(request):
+    with open('brabant_puzzle/terminal.txt', "r") as f:
+        lines = f.read().split("\n")
+
+    out = "<b>" + lines[0] + "</b><br>"
+    for line in reversed(lines[1:]):
+        out += line + "<br>"
+
+    context = {
+        "out": out
+    }
+
+    return render(request, 'puzzle/terminal.html', context)
+
+
+def heatmap(request):
+    filename = sorted(os.listdir("/home/rob/Documents/puzzleDjango/brabant_puzzle/heatmaps"), key=lambda x: int(x[8:-5]))[-1]
+    filename = os.path.join('brabant_puzzle/heatmaps', filename)
+
+    with open(filename, 'r') as f:
+        heatmap = json.load(f)
+
+    out = "<b>Heatmap</b><br>"
+    heatmap = dict(sorted(heatmap.items(), key=lambda item: len(item[1])))
+
+    for k, v in heatmap.items():
+        if len(v) == 0:
+            continue
+
+        options = sorted(v)
+        out += "Cell " + str(k) + ":<br>"
+        for option in options:
+            out += "<li>" + option + "</li>"
+
+    context = {
+        "out" : out
+    }
+
+    return render(request, 'puzzle/heatmap.html', context)
+
+
+def superheatmap(request):
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+
+    n_options = len(opties)
+    opties = sorted(opties)
+
+    array = np.zeros((175, n_options))
+
+    DIR = 'brabant_puzzle/heatmaps'
+    heatmaps = os.listdir("/home/rob/Documents/puzzleDjango/brabant_puzzle/heatmaps")
+
+    out = "<b>Superheatmap</b><br>"
+    for heatmap in heatmaps:
+        with open(os.path.join(DIR, heatmap), 'r') as f:
+            heatmap = json.load(f)
+
+        heatmap = dict(sorted(heatmap.items(), key=lambda item: len(item[1])))
+
+        for k, v in heatmap.items():
+            if len(v) == 0:
+                continue
+
+            for option in v:
+                array[int(k), opties.index(option)] += 1
+
+    out += "<table border=1><tr><th>Cell</th>"
+
+    for optie in opties:
+        out += "<th>" + optie + "</th>"
+
+    out += "</tr>"
+
+    for i in range(array.shape[0]):
+        out += "<tr><td><b>" + str(i) + "</b></td>"
+        for j, optie in enumerate(opties):
+            out += "<td>" + str(int(array[i, j])) + "</td>"
+
+        out += "</tr>"
+
+    context = {
+        "out" : out
+    }
+
+    return render(request, 'puzzle/heatmap.html', context)

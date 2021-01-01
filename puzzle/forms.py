@@ -23,7 +23,7 @@ class ToolForm(forms.ModelForm):
 class SettingsForm(forms.ModelForm):
     class Meta:
         model = UploadSettings
-        fields = ['mode', 'algorithm', 'timeout', "use_self_filled"]
+        fields = ['mode', 'algorithm', 'timeout', "use_self_filled", "double_check"]
 
 
 class UpdateCellForm(forms.ModelForm):

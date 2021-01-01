@@ -112,11 +112,12 @@ class Plotter:
         self.last_saved = self.ax.text(-8, 0.6, datetime.datetime.now().strftime("%H:%M:%S"), size=30, fontsize=30)
         self.stats = self.ax.text(-8, 0.3, "", size=30, fontsize=30)
         self.avg_time = self.ax.text(-8, 0, "", size=30, fontsize=30)
+        self.qsize = self.ax.text(-8, -0.3, "", size=30, fontsize=30)
 
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
 
-    def plot(self, S, all_options, heatmap=None, best_time="", avg_time=-1, stuck=False):
+    def plot(self, S, all_options, heatmap=None, best_time="", avg_time=-1, stuck=False, qsize=-1, final=False):
         remove_filenames = []
 
         if not self.template:
@@ -124,7 +125,7 @@ class Plotter:
             files = os.listdir(DIR)
             remove_filenames = [f for f in files if "latest_solution" in f]
 
-            self.filepath = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/latest_solution" + str(int(random.uniform(1000, 2000))) + ".png"
+            self.filepath = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/latest_solution" + str(int(random.uniform(1000, 9999))) + ".png"
 
         labels = []
         for c in S:
@@ -180,6 +181,7 @@ class Plotter:
         # Plot timestamp
         self.best_time.set_text("Best time: " + best_time)
         self.last_saved.set_text("Last saved time: " + datetime.datetime.now().strftime("%H:%M:%S"))
+        self.qsize.set_text("Queue size: " + str(qsize))
 
         string = "Filled: " + str(len([j for j in S if j is not None]) - len(self.self_filled) - len(self.filled)) + " / " + str(len(S) - len(self.self_filled) - len(self.filled))
         self.stats.set_text(string)
@@ -189,19 +191,25 @@ class Plotter:
         self.fig.tight_layout()
 
         if stuck:
-            self.ax.text(-8, -0.6, "STUCK :(", size=60, fontsize=60, weight='bold')
+            self.ax.text(-8, -0.9, "STUCK :(", size=60, fontsize=60, weight='bold')
 
-        for f in remove_filenames:
-            os.remove(os.path.join(DIR, f))
 
-        self.fig.savefig(self.filepath)
+        if not final:
+            self.fig.savefig(self.filepath)
 
-        if not self.template:
-            filled = len([s for s in S if s is not None])
-            filename = os.path.join(self.old_solutions_path, str(filled) + "_solution.png")
-            self.fig.savefig(filename)
+            for f in remove_filenames:
+                if f != self.filepath:
+                    os.remove(os.path.join(DIR, f))
 
-        plt.close(self.fig)
+            if not self.template:
+                filled = len([s for s in S if s is not None])
+                filename = os.path.join(self.old_solutions_path, str(filled) + "_solution.png")
+                self.fig.savefig(filename)
+
+            plt.close(self.fig)
+        else:
+            filepath = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images/finished_solutions/" + datetime.datetime.now().strftime("%d_%H:%M:%S") + "_final_solution.png"
+            self.fig.savefig(filepath)
 
 
 if __name__ == "__main__":

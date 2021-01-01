@@ -15,6 +15,7 @@ from time import time, sleep
 import json
 import os
 from functools import reduce
+import json
 
 import pandas as pd
 from collections import defaultdict
@@ -120,6 +121,18 @@ class Solver:
         self.best_solution = None
         self.found_better_time = time()
         self.found_better_times = []
+        with open('terminal.txt', 'w') as f:
+            f.write("Terminal\n")
+
+        heatmap_num = 0
+        while True:
+            filename = "heatmap_" + str(heatmap_num) + ".json"
+            if filename in os.listdir('heatmaps'):
+                heatmap_num += 1
+            else:
+                break
+
+        self.heatmap_file = os.path.join("heatmaps", filename)
 
     @staticmethod
     def get_settings():
@@ -195,8 +208,6 @@ class Solver:
             lst = enumerate(S)
 
         for cell, fill in lst:
-            # if cell == 23 or cell == 22 or cell == 21 or cell == 12 or cell == 31 or cell == 32:
-            #     continue
 
             if fill is None:
                 if cell in category_cells:
@@ -229,7 +240,9 @@ class Solver:
                             options[antwoord] += 1
 
                 if self.settings["mode"] != "random" and not stop_adding:
-                    break
+                    stop_adding = True
+                    if "star" not in self.settings["algorithm"]:
+                        break
 
         random.shuffle(neighbors)
         return neighbors, options, cell_options
@@ -248,8 +261,9 @@ class Solver:
             neighs, options, cell_options = self.get_neighbor_states(S, self.visited)
             for added, new_S, matches in neighs:
                 self.visited.add(hash(tuple(S)))
-                if self.check_stuck(new_S, new_S.index(added)):
-                    continue
+                if self.settings["double_check"] == "True":
+                    if self.check_stuck(new_S, new_S.index(added)):
+                        continue
 
                 # Add values to heatmap
                 for cell, value in enumerate(new_S):
@@ -267,8 +281,13 @@ class Solver:
                 nones = [v for k, v in enumerate(new_S) if v is None]
                 num_unfilled = len(nones)
                 if num_unfilled < self.least_unfilled:
-                    if self.check_stuck(new_S, added):
-                        continue
+                    if self.settings["double_check"]:
+                        if self.check_stuck(new_S, added):
+                            continue
+
+                    text_heatmap = {k: [self.all_options[a] for a in v if a not in self.filled] for k, v in self.heatmap.items()}
+                    with open(self.heatmap_file, "w") as f:
+                        json.dump(text_heatmap, f)
 
                     self.found_better_times.append(time() - self.found_better_time)
                     self.found_better_time = time()
@@ -279,27 +298,32 @@ class Solver:
 
                     now = datetime.datetime.now().strftime("%H:%M:%S")
 
-                    num_filled = len([x for x in new_S if x is not None])
                     word_added = self.all_options[added]
+                    num_filled = str(len([j for j in new_S if j is not None]) - len(self.filled))
 
-                    print("Found closer solution:", num_unfilled,  ". Filled:", word_added, "(", new_S.index(added), ")(", now, ") - (", self.queue.qsize(), ")")
+                    string = "Filled: " + str(num_filled) + ". Added: " + word_added + " (" + str(new_S.index(added)) + ") (" + now + ") - (" + str(self.queue.qsize()) + ")"
+                    print(string)
+
+                    with open('terminal.txt', 'a') as f:
+                        f.write(string + "\n")
+
                     self.least_unfilled = num_unfilled
                     self.best_solution = copy.deepcopy(new_S)
 
                     if time() - self.last_plotted > min(max(len(self.found_better_times), 5), 30):
                         self.last_plotted = time()
-                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time)
+                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
 
                 if self.start_time is not None:
                     if time() - self.start_time > 10:
                         self.start_time = None
                         self.last_plotted = time()
-                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time)
+                        self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
 
                 elif time() - self.last_plotted > 60:
                     self.last_plotted = time()
                     avg_time = float(np.mean(self.found_better_times))
-                    self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time)
+                    self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
 
                 if self.queue.qsize() % 100000 == 0 and self.queue.qsize() > self.biggest_queue_size:
                     self.biggest_queue_size = self.queue.qsize()
@@ -316,11 +340,13 @@ class Solver:
 
                 if self.settings["algorithm"] == "dfs":
                     prio = num_unfilled
+
                 elif self.settings["algorithm"] == "bfs":
                     prio = -num_unfilled
 
                 elif "star" in self.settings["algorithm"]:
-                    prio = options[added]
+                    if options[added] == 1:
+                        prio = options[added]
 
                     if self.settings["algorithm"] in ["b-star", "c-star", "d-star", "e-star"]:
                         prio -= matches
@@ -329,7 +355,8 @@ class Solver:
                         prio += num_unfilled
 
                     if self.settings["algorithm"] in ["d-star", "e-star"]:
-                        prio += cell_options[new_S.index(added)]
+                        if cell_options[new_S.index(added)] == 1:
+                            prio += cell_options[new_S.index(added)]
 
                 self.queue.put((prio, id(new_S), new_S))
 
@@ -337,7 +364,10 @@ class Solver:
         with open("partially_solved.p", "wb") as f:
             p.dump(self.best_solution, f)
 
-        self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, True)
+        with open('terminal.txt', "a") as f:
+            f.write("STUCK!\n")
+
+        self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, True, self.queue.qsize())
         self.plot_progress()
         return True
 
@@ -394,5 +424,8 @@ if __name__ == "__main__":
                 if time() - start_time > 60 * timeout:
                     print("Timing out after", timeout, "minutes!")
                     break
+
+        solver.plotter.plot(solver.best_solution, solver.all_options, solver.heatmap, solver.best_time, -1, False,
+                          solver.queue.qsize(), True)
 
 

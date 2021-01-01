@@ -43,6 +43,11 @@ class UploadSettings(models.Model):
         ('False', 'False')
     )
 
+    DOUBLE_CHECK = (
+        ('True', 'True'),
+        ('False', 'False')
+    )
+
     with open("brabant_puzzle/settings.txt", "r") as f:
         settings = json.load(f)
 
@@ -50,6 +55,7 @@ class UploadSettings(models.Model):
     algorithm = models.CharField(max_length=6, choices=ALGORITHM_CHOICES, default=settings["algorithm"])
     timeout = models.TextField(max_length=100, default=settings["timeout"])
     use_self_filled = models.CharField(max_length=10, choices=SELF_FILLED_CHOICES, default=settings["use_self_filled"])
+    double_check = models.CharField(max_length=10, choices=DOUBLE_CHECK, default=settings["double_check"])
 
 
 class UpdateCell(models.Model):

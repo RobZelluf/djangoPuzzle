@@ -17,7 +17,8 @@ def get_data():
 
     with open(filename, "rb") as f:
         antwoorden_df = pd.read_excel(f, "Antwoorden", index_col=0)
-        antwoorden_df = antwoorden_df.iloc[:, 1:9]
+        antwoorden_df = antwoorden_df.iloc[:, 1:11]
+
         antwoorden = list(antwoorden_df.index)
 
         categorien_df = pd.read_excel(f, "categorieen", index_col=0)
@@ -32,7 +33,7 @@ def get_data():
 
     with open(filename, "rb") as f:
         antwoorden_df = pd.read_excel(f, "Antwoorden", index_col=0)
-        antwoorden_df = antwoorden_df.iloc[:, 1:9]
+        antwoorden_df = antwoorden_df.iloc[:, 1:11]
 
         categorien_df = pd.read_excel(f, "categorieen", index_col=0)
 

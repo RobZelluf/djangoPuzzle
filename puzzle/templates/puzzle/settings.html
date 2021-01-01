@@ -19,6 +19,11 @@
 <b>Current timeout:</b>
 {{ current_timeout }} minutes
 
+<br>
+
+<b>Current double check:</b>
+{{ current_double_check }}
+
 <form method="post", enctype="multipart/form-data">
     {% csrf_token %}
     {{ form }}
