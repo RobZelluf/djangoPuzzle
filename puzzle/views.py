@@ -16,6 +16,7 @@ import os
 import json
 import pandas as pd
 import numpy as np
+import pickle as p
 
 from tabulate import tabulate
 
@@ -50,12 +51,31 @@ def get_visited_image():
 
 
 def solution(request):
+    all_options = get_all_options()
+
     with open('brabant_puzzle/settings.txt', 'r') as f:
         settings = json.load(f)
+
+    with open('brabant_puzzle/latest_state.p', 'rb') as f:
+        new_S = p.load(f)
+
+    left = sorted([v for i, v in enumerate(all_options) if i not in new_S])
+
+    out2 = "<b>Unfilled: </b>"
+    out = "<ul>"
+    for word in left:
+        out2 += word + ", "
+        out += "<li>" + word + "</li>"
+
+    out = out[:-2]
+
+    out += "</ul>"
 
     context = {
         "func1": get_solution_image,
         "func2": get_visited_image,
+        "out": out,
+        "out2": out2
     }
 
     for k, v in settings.items():
@@ -343,14 +363,14 @@ def old_solutions(request):
 
 
 def finished_solutions(request):
-    DIR = "puzzle/static/puzzle/images/finished_solutions"
-    old_images = sorted(os.listdir(DIR), key=lambda x : int(x[9:-19]))
+    old_images = sorted(pathlib.Path("puzzle/static/puzzle/images/finished_solutions/").iterdir(), key=os.path.getmtime, reverse=True)
+
     output = ""
-    for image in old_images:
-        url = os.path.join("/static/puzzle/images/finished_solutions", image)
-        fname = pathlib.Path(os.path.join(DIR, image))
-        mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime).strftime("%D-%H:%M:%S")
-        output += '<li><a href="' + url + '">' + image + '</a> (' + mtime + ')'
+    for path in old_images:
+
+        url = "/".join(str(path).split("/")[1:])
+        mtime = datetime.datetime.fromtimestamp(path.stat().st_mtime).strftime("%D-%H:%M:%S")
+        output += '<li><a href="' + url + '">' + path.name + '</a> (' + mtime + ')'
 
     return HttpResponse(output)
 
@@ -385,9 +405,11 @@ def heatmap(request):
             continue
 
         options = sorted(v)
-        out += "Cell " + str(k) + ":<br>"
+        out += "Cell " + str(k) + ":<ol>"
         for option in options:
             out += "<li>" + option + "</li>"
+
+        out += "</ol>"
 
     context = {
         "out" : out

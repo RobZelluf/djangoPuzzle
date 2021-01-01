@@ -265,11 +265,6 @@ class Solver:
                     if self.check_stuck(new_S, new_S.index(added)):
                         continue
 
-                # Add values to heatmap
-                for cell, value in enumerate(new_S):
-                    if value not in self.heatmap[cell] and value is not None:
-                        self.heatmap[cell].append(value)
-
                 depth = len([s for s in S if s is not None])
                 self.cell_visited.append(depth)
                 if len(self.cell_visited) > 1000000:
@@ -285,9 +280,13 @@ class Solver:
                         if self.check_stuck(new_S, added):
                             continue
 
-                    text_heatmap = {k: [self.all_options[a] for a in v if a not in self.filled] for k, v in self.heatmap.items()}
-                    with open(self.heatmap_file, "w") as f:
-                        json.dump(text_heatmap, f)
+                    with open('latest_state.p', 'wb') as f:
+                        p.dump(new_S, f)
+
+                    # Make new heatmap
+                    self.heatmap = defaultdict(list)
+                    self.update_heatmap(new_S)
+                    self.save_heatmap()
 
                     self.found_better_times.append(time() - self.found_better_time)
                     self.found_better_time = time()
@@ -299,7 +298,7 @@ class Solver:
                     now = datetime.datetime.now().strftime("%H:%M:%S")
 
                     word_added = self.all_options[added]
-                    num_filled = str(len([j for j in new_S if j is not None]) - len(self.filled))
+                    num_filled = str(len([j for j in new_S if j is not None]) - 6)
 
                     string = "Filled: " + str(num_filled) + ". Added: " + word_added + " (" + str(new_S.index(added)) + ") (" + now + ") - (" + str(self.queue.qsize()) + ")"
                     print(string)
@@ -313,6 +312,11 @@ class Solver:
                     if time() - self.last_plotted > min(max(len(self.found_better_times), 5), 30):
                         self.last_plotted = time()
                         self.plotter.plot(new_S, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
+                        self.save_heatmap()
+
+                elif num_unfilled == self.least_unfilled:
+                    # Add values to heatmap
+                    self.update_heatmap(new_S)
 
                 if self.start_time is not None:
                     if time() - self.start_time > 10:
@@ -324,6 +328,7 @@ class Solver:
                     self.last_plotted = time()
                     avg_time = float(np.mean(self.found_better_times))
                     self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, False, self.queue.qsize())
+                    self.save_heatmap()
 
                 if self.queue.qsize() % 100000 == 0 and self.queue.qsize() > self.biggest_queue_size:
                     self.biggest_queue_size = self.queue.qsize()
@@ -345,8 +350,8 @@ class Solver:
                     prio = -num_unfilled
 
                 elif "star" in self.settings["algorithm"]:
-                    if options[added] == 1:
-                        prio = options[added]
+
+                    prio = options[added]
 
                     if self.settings["algorithm"] in ["b-star", "c-star", "d-star", "e-star"]:
                         prio -= matches
@@ -355,8 +360,7 @@ class Solver:
                         prio += num_unfilled
 
                     if self.settings["algorithm"] in ["d-star", "e-star"]:
-                        if cell_options[new_S.index(added)] == 1:
-                            prio += cell_options[new_S.index(added)]
+                        prio += cell_options[new_S.index(added)]
 
                 self.queue.put((prio, id(new_S), new_S))
 
@@ -369,7 +373,19 @@ class Solver:
 
         self.plotter.plot(self.best_solution, self.all_options, self.heatmap, self.best_time, avg_time, True, self.queue.qsize())
         self.plot_progress()
+        self.save_heatmap()
         return True
+
+    def update_heatmap(self, new_S):
+        for cell, value in enumerate(new_S):
+            if value not in self.heatmap[cell] and value is not None:
+                self.heatmap[cell].append(value)
+
+    def save_heatmap(self):
+        text_heatmap = {k: [self.all_options[a] for a in v if a not in self.filled] for k, v in
+                        self.heatmap.items()}
+        with open(self.heatmap_file, "w") as f:
+            json.dump(text_heatmap, f)
 
     def plot_progress(self):
         DIR = "/home/rob/Documents/puzzleDjango/puzzle/static/puzzle/images"
@@ -391,6 +407,7 @@ class Solver:
 if __name__ == "__main__":
     while True:
         solver = Solver()
+        solver.plotter.plot(solver.start_S, solver.all_options, None, solver.best_time, -1, False, 0)
         start_time = time()
 
         stuck = False
@@ -427,5 +444,6 @@ if __name__ == "__main__":
 
         solver.plotter.plot(solver.best_solution, solver.all_options, solver.heatmap, solver.best_time, -1, False,
                           solver.queue.qsize(), True)
+        solver.save_heatmap()
 
 

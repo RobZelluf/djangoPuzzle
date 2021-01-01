@@ -141,20 +141,18 @@ class Plotter:
 
         if heatmap is not None:
             heats = [len(v) for k, v in heatmap.items()]
-            category_heats = [len(v) for k, v in heatmap.items() if k in category_cells]
 
-            norm = matplotlib.colors.Normalize(vmin=min(heats), vmax=max(heats))
-            cat_norm = matplotlib.colors.Normalize(vmin=min(category_heats), vmax=max(category_heats))
+            norm = matplotlib.colors.Normalize(vmin=min(heats), vmax=max(heats) * 1.5)
 
         # Add some coloured hexagons
         for i, (x, y, l) in enumerate(zip(self.hcoord, self.vcoord, labels)):
 
             if heatmap is not None:
                 if i in category_cells:
-                    cmap =cm.get_cmap("Oranges_r")
-                    color = cmap(cat_norm(heats[i]))
+                    cmap = cm.get_cmap("Oranges_r", 30)
+                    color = cmap(norm(heats[i]))
                 else:
-                    cmap = cm.get_cmap("Greens_r")
+                    cmap = cm.get_cmap("Greens_r", 30)
                     color = cmap(norm(heats[i]))
 
             # Also add a text label
@@ -183,7 +181,11 @@ class Plotter:
         self.last_saved.set_text("Last saved time: " + datetime.datetime.now().strftime("%H:%M:%S"))
         self.qsize.set_text("Queue size: " + str(qsize))
 
-        string = "Filled: " + str(len([j for j in S if j is not None]) - len(self.self_filled) - len(self.filled)) + " / " + str(len(S) - len(self.self_filled) - len(self.filled))
+        filled = len([j for j in S if j is not None]) - 6
+        total = len(S) - 6
+        percent = int(filled / total * 100)
+
+        string = "Filled: " + str(filled) + " / " + str(total) + " (" + str(percent) + "%)"
         self.stats.set_text(string)
 
         self.avg_time.set_text("Avg improvement time: " + str(round(float(avg_time), 1)) + " seconds.")
@@ -192,7 +194,6 @@ class Plotter:
 
         if stuck:
             self.ax.text(-8, -0.9, "STUCK :(", size=60, fontsize=60, weight='bold')
-
 
         if not final:
             self.fig.savefig(self.filepath)
