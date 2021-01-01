@@ -237,6 +237,7 @@ class Solver:
 
     def solve(self):
         t0 = time()
+        avg_time = -1
         while not self.queue.empty():
             diff = time() - t0
             if diff > 10:
