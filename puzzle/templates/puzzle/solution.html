@@ -6,28 +6,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="10"/>
-    <meta http-equiv=“Pragma” content=”no-cache”>
-    <meta http-equiv=“Expires” content=”-1″>
-    <meta http-equiv=“CACHE-CONTROL” content=”NO-CACHE”>
+    <meta http-equiv="refresh" content="5"/>
     <title>Solution</title>
 </head>
 <body>
 
-<b>Mode:</b> {{ mode }} - <b>Algorithm:</b> {{ algorithm }} - <b>Timeout:</b> {{ timeout }}
-- <b>Self filled:</b> {{ use_self_filled }} - <b>Double check:</b> {{ double_check }}
+{% for k, v in settings %}
+    <b>{{ k }}:</b> {{ v }} -
+{% endfor %}
 
 <br><br>
 {{ out2 | safe }}
 
-<img src="{{ func1 }}" alt="Solution" width="1500" height="1500">
+<img src="{{ func1 }}" alt="Solution" width="1200" height="1200">
 
 <div style="margin: auto; text-align: center;">
 {{ out | safe }}
 </div>
 
 
-<img src="{{ func2 }}" alt="Visited">
+<img src="{{ func2 }}" alt="Visited", width="1200">
 
 </body>
 </html>

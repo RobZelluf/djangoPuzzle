@@ -17,7 +17,7 @@ def find_crossmatch(categories):
 
 
 
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
     text_categories = [categorien_df.loc[x].Omschrijving for x in categories]
 
     all_categories = list(categorie_antwoord.keys())

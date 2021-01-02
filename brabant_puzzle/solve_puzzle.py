@@ -23,7 +23,7 @@ from collections import defaultdict
 
 class Solver:
     def __init__(self):
-        antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+        antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
 
         self.start_time = time()
         self.filename = get_filename()
@@ -114,6 +114,11 @@ class Solver:
                     self.start_S[int(cell)] = answer_int
                     self.filled.append(answer_int)
 
+        self.fixed_answers = {}
+
+        for antwoord, fixed_categories in antwoorden_fixed.items():
+            self.fixed_answers[self.all_options.index(antwoord)] = [self.all_options.index(x) for x in fixed_categories]
+
         # Setup for solving
         self.queue = PriorityQueue()
         self.queue.put((0, id(self.start_S), self.start_S))
@@ -185,6 +190,21 @@ class Solver:
 
         matches = 0
         neighs = adjacency_dict[cell]
+
+        if self.settings["use_fixed"] == "True":
+            if cell in self.answers_ind:
+                if value in list(self.fixed_answers.keys()):
+                    for category in self.fixed_answers[value]:
+                        if category in S:
+                            if category not in [S[neigh] for neigh in neighs]:
+                                return False, False
+
+            # O.W. the cell is an answer
+            else:
+                answers = [k for k, v in self.fixed_answers.items() if value in v]
+                for answer in answers:
+                    if answer in S and answer not in [S[neigh] for neigh in neighs]:
+                        return False, False
 
         for neigh in neighs:
             neigh_val = S[neigh]
@@ -315,7 +335,7 @@ class Solver:
                         # Add values to heatmap
                         self.update_heatmap(new_S)
 
-                    if not self.balance and time() - self.found_better_time > 5:
+                    if not self.balance and time() - self.found_better_time > 5 and self.settings["algorithm"] not in ["bfs"]:
                         print("Balanced at", len([j for j in self.best_solution if j is not None]) - 6, "filled - Plotting!")
                         self.balance = True
 
@@ -323,7 +343,7 @@ class Solver:
                         self.plot_progress()
 
                 if time() - self.last_plotted > 120:
-                    self.plot(new_S)
+                    self.plot(self.best_solution)
                     self.plot_progress()
 
                 if self.queue.qsize() % 100000 == 0 and self.queue.qsize() > self.biggest_queue_size:
@@ -349,14 +369,20 @@ class Solver:
 
                     prio = options[added]
 
-                    if self.settings["algorithm"] in ["b-star", "c-star", "d-star", "e-star"]:
+                    if self.settings["algorithm"] in ["b-star", "c-star", "d-star", "e-star", "f-star"]:
                         prio -= matches
 
-                    if self.settings["algorithm"] in ["c-star", "e-star"]:
+                    if self.settings["algorithm"] in ["c-star", "e-star", "f-star"]:
                         prio += num_unfilled
 
-                    if self.settings["algorithm"] in ["d-star", "e-star"]:
+                    elif self.settings["algorithm"] == "d-star":
+                        prio += 0.2 * num_unfilled
+
+                    if self.settings["algorithm"] in ["d-star", "e-star", "f-star"]:
                         prio += cell_options[new_S.index(added)]
+
+                    if self.settings["algorithm"] in ["f-star"]:
+                        prio += min(time() - self.found_better_time, 0.0)
 
                 self.queue.put((prio, id(new_S), new_S))
 
@@ -420,9 +446,9 @@ if __name__ == "__main__":
                 print("Stuck: waiting for new settings")
                 sleep(5)
 
-            if solver.filename != get_filename():
-                print("Source excel file changed!")
-                break
+            # if solver.filename != get_filename():
+            #     print("Source excel file changed!")
+            #     break
 
             if solver.settings != solver.get_settings():
                 print("Settings changed!")

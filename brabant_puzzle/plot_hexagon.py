@@ -117,6 +117,13 @@ class Plotter:
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
 
+        setting_string = "Settings: "
+        for setting, val in settings.items():
+            setting_string += setting + ": " + val + ", "
+
+        setting_string = setting_string[:-2]
+        self.ax.text(-8, -17, setting_string)
+
     def plot(self, S, all_options, heatmap=None, best_time="", avg_time=-1, stuck=False, qsize=-1, final=False):
         remove_filenames = []
 
@@ -203,7 +210,7 @@ class Plotter:
                     os.remove(os.path.join(DIR, f))
 
             if not self.template:
-                filled = len([s for s in S if s is not None])
+                filled = len([s for s in S if s is not None]) - 6
                 filename = os.path.join(self.old_solutions_path, str(filled) + "_solution.png")
                 self.fig.savefig(filename)
 

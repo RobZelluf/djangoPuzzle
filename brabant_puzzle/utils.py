@@ -17,7 +17,9 @@ def get_data():
 
     with open(filename, "rb") as f:
         antwoorden_df = pd.read_excel(f, "Antwoorden", index_col=0)
-        antwoorden_df = antwoorden_df.iloc[:, 1:11]
+
+        fixed_df = antwoorden_df.iloc[:, 11:13]
+        antwoorden_df = antwoorden_df.iloc[:, 1:10]
 
         antwoorden = list(antwoorden_df.index)
 
@@ -46,11 +48,18 @@ def get_data():
                 categorie_antwoord[categorie_beschrijving].append(antwoord)
                 antwoord_categorie[antwoord].append(categorie_beschrijving)
 
-    return antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties
+    antwoorden_fixed = {}
+    for antwoord, fixed_categories in fixed_df.iterrows():
+        fixed_categories = [categorien_df.loc[int(x)].Omschrijving for x in fixed_categories if not np.isnan(x)]
+
+        if len(fixed_categories) > 0:
+            antwoorden_fixed[antwoord] = fixed_categories
+
+    return antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed
 
 
 def get_all_options():
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
     all_options = copy.copy(categorieen)
     all_options.extend(antwoorden)
 

@@ -22,5 +22,5 @@ urlpatterns = [
     path('cells/<int:cell_id>/', views.cell),
     path('old_solutions/', views.old_solutions, name='old_solutions'),
     path('finished_solutions/', views.finished_solutions, name='finished_solutions'),
-    path('nav/', TemplateView.as_view(template_name='puzzle/topnav.html'))
+    path('clear_cells/', views.clear_cells, name='clear_cells'),
 ]

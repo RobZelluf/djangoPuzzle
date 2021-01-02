@@ -4,6 +4,7 @@ from .models import clear_files, UploadFile, UploadCategories, UploadSettings
 from django.shortcuts import redirect
 import datetime
 import pathlib
+import random
 from PIL import Image
 from django.shortcuts import render
 from django.views import generic
@@ -17,6 +18,7 @@ import json
 import pandas as pd
 import numpy as np
 import pickle as p
+import csv
 
 from tabulate import tabulate
 
@@ -33,10 +35,11 @@ def index(request):
         response += '<li style="font-size:30px"><a href="' + page + '/">' + string + '</a>'
 
     context = {
+        "title": "Brabantpuzzel",
         "content": response
     }
 
-    return render(request, "puzzle/index.html", context)
+    return render(request, "puzzle/base.html", context)
 
 
 def get_solution_image():
@@ -81,7 +84,8 @@ def solution(request):
         "func1": get_solution_image,
         "func2": get_visited_image,
         "out": out,
-        "out2": out2
+        "out2": out2,
+        "settings": [[k, v] for k, v in settings.items()]
     }
 
     for k, v in settings.items():
@@ -124,19 +128,28 @@ def upload(request):
 
 
 def results(request, category_id):
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
 
     category = categorien_df.loc[category_id].Omschrijving
     found = sorted(categorie_antwoord[category])
+    #
+    output = ""
+    #
+    for answer in found:
+        # url = reverse(cell, kwargs={'cell_id': str(i)})
+        url = reverse(answer_results, kwargs={'answer': answer})
+        output += "<li><a href='" + url + "'>" + answer + "</a>"
 
-    output = "<b>" + category + "</b><br><br>"
-    output += '<br>'.join([q for q in found])
+    context = {
+        "title": category,
+        "content": output
+    }
 
-    return HttpResponse(output)
+    return render(request, 'puzzle/base.html', context)
 
 
 def categories(request):
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
 
     categorien = [[i, category.Omschrijving] for i, category in categorien_df.iterrows()]
     categorien = sorted(categorien, key = lambda x : x[1])
@@ -145,28 +158,57 @@ def categories(request):
     for i, category in categorien:
         output += '<li><a href="' + str(i) + '">' + category + '</a>'
 
-    return render(request, 'puzzle/categories.html', {"content": output})
+    context = {
+        "title": "Categories",
+        "content": output
+    }
+
+    return render(request, 'puzzle/base.html', context)
 
 
 def answers(request):
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
     antwoorden = sorted(list(antwoord_categorie.keys()))
 
     output = ""
     for antwoord in antwoorden:
+        url = 'https://nl.wikipedia.org/wiki/Special:Search?search=' + antwoord
         output += '<li><a href="' + antwoord + '">' + antwoord + '</a>'
+        output += ' - (<a style="font-size: 10px" href="' + url + '">wiki</a>)'
 
-    return render(request, 'puzzle/answers.html', {"content": output})
+    context = {
+        "title": "Answers",
+        "content": output
+    }
+
+    return render(request, 'puzzle/base.html', context)
 
 
 def answer_results(request, answer):
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
     categories = sorted(antwoord_categorie[answer])
 
-    output = "<b>" + answer + "</b><br><br>"
-    output += '<br>'.join([q for q in categories])
+    with open('brabant_puzzle/puzzle_filled.csv', 'r') as f:
+        puzzle_filled = pd.read_csv(f, index_col=0)
 
-    return HttpResponse(output)
+    output = "<b>" + answer + "</b><br><br>"
+    for category in categories:
+        category_id = categorien_df.loc[categorien_df['Omschrijving'] == category].index[0]
+
+        url = reverse(results, kwargs={'category_id': category_id})
+        output += "<li><a href='" + url + "'>" + category + "</a>"
+
+        if category in list(puzzle_filled.Answer):
+            output += "*"
+
+        output += "</li>"
+
+    context = {
+        "title": answer,
+        "content": output
+    }
+
+    return render(request, 'puzzle/base.html', context)
 
 
 def tool(request):
@@ -194,11 +236,17 @@ def tool(request):
 
                 html += "</tr>"
 
-            return HttpResponse(html)
+            context = {
+                "title": "Super Nice Tool",
+                "content": html
+            }
+
+            return render(request, 'puzzle/base.html', context)
     else:
         form = ToolForm()
 
     context = {
+        'title': "Super Nice Tool",
         'form': form
     }
 
@@ -215,13 +263,15 @@ def settings(request):
             timeout = form.cleaned_data["timeout"]
             use_self_filled = form.cleaned_data["use_self_filled"]
             double_check = form.cleaned_data["double_check"]
+            use_fixed = form.cleaned_data["use_fixed"]
 
             data = dict(
                 mode=mode,
                 algorithm=algorithm,
                 timeout=timeout,
                 use_self_filled=use_self_filled,
-                double_check=double_check
+                double_check=double_check,
+                use_fixed=use_fixed
             )
 
             with open('brabant_puzzle/settings.txt', 'w') as f:
@@ -241,14 +291,15 @@ def settings(request):
         'current_algorithm': settings["algorithm"],
         'current_timeout': settings["timeout"],
         'current_use_self_filled': settings["use_self_filled"],
-        'current_double_check': settings["double_check"]
+        'current_double_check': settings["double_check"],
+        'current_use_fixed': settings["use_fixed"]
     }
 
     return render(request, 'puzzle/settings.html', context)
 
 
 def cell(request, cell_id):
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
 
     with open("brabant_puzzle/puzzle_filled.csv", "r") as f:
         df = pd.read_csv(f, index_col=0)
@@ -311,11 +362,22 @@ def cell(request, cell_id):
 
 
 def cells(request):
+    with open('brabant_puzzle/puzzle_filled.csv', 'r') as f:
+        puzzle_filled = pd.read_csv(f, index_col=0)
+
+    with open('brabant_puzzle/self_filled.csv', 'r') as f:
+        self_filled = pd.read_csv(f, index_col=0)
+
     cells = list(i for i, _ in enumerate(all_options))
 
     output = ""
     for cell in cells:
-        output += '<li><a href="' + str(cell) + '">Cell ' + str(cell) + '</a>'
+        if cell in list(puzzle_filled.index):
+            output += '<li><b>Cell ' + str(cell) + '</b> - ' + puzzle_filled.loc[cell].Answer + '</li>'
+        elif cell in list(self_filled.index):
+            output += '<li><a href="' + str(cell) + '">Cell ' + str(cell) + " - " + self_filled.loc[cell].Answer + '</a>'
+        else:
+            output += '<li><a href="' + str(cell) + '">Cell ' + str(cell) + '</a>'
 
     context = {
         "title": "Cells",
@@ -399,12 +461,13 @@ def terminal(request):
     with open('brabant_puzzle/terminal.txt', "r") as f:
         lines = f.read().split("\n")
 
-    out = "<b>" + lines[0] + "</b><br>"
+    out = ""
     for line in reversed(lines[1:]):
         out += line + "<br>"
 
     context = {
-        "out": out
+        "title": "Terminal",
+        "content": out
     }
 
     return render(request, 'puzzle/terminal.html', context)
@@ -433,14 +496,14 @@ def heatmap(request):
 
     context = {
         "title": "Heatmap",
-        "out" : out
+        "content": out
     }
 
-    return render(request, 'puzzle/heatmap.html', context)
+    return render(request, 'puzzle/base.html', context)
 
 
 def superheatmap(request):
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
 
     n_options = len(opties)
     opties = sorted(opties)
@@ -450,7 +513,7 @@ def superheatmap(request):
     DIR = 'brabant_puzzle/heatmaps'
     heatmaps = os.listdir("/home/rob/Documents/puzzleDjango/brabant_puzzle/heatmaps")
 
-    out = "<b>Superheatmap</b><br>"
+    out = ""
     for heatmap in heatmaps:
         with open(os.path.join(DIR, heatmap), 'r') as f:
             heatmap = json.load(f)
@@ -470,9 +533,13 @@ def superheatmap(request):
     with open('brabant_puzzle/self_filled.csv', 'r') as f:
         self_filled = pd.read_csv(f, index_col=0)
 
+    with open('brabant_puzzle/settings.txt', 'r') as f:
+        settings = json.load(f)
+
     for i, _, _ in cells_matches:
-        if i in list(self_filled.index):
-            continue
+        # if settings["use_self_filled"] == "True":
+        #     if i in list(self_filled.index):
+        #         continue
 
         cell_options = array[i]
         options = np.where(cell_options > 0)
@@ -487,23 +554,35 @@ def superheatmap(request):
 
             out += "</ol>"
 
-    out += "<table border=1><tr><th>Cell</th>"
-
-    for optie in opties:
-        out += "<th>" + optie + "</th>"
-
-    out += "</tr>"
-
-    for i in range(array.shape[0]):
-        out += "<tr><td><b>" + str(i) + "</b></td>"
-        for j, optie in enumerate(opties):
-            out += "<td>" + str(int(array[i, j])) + "</td>"
-
-        out += "</tr>"
+    # out += "<table border=1><tr><th>Cell</th>"
+    #
+    # for optie in opties:
+    #     out += "<th>" + optie + "</th>"
+    #
+    # out += "</tr>"
+    #
+    # for i in range(array.shape[0]):
+    #     out += "<tr><td><b>" + str(i) + "</b></td>"
+    #     for j, optie in enumerate(opties):
+    #         out += "<td>" + str(int(array[i, j])) + "</td>"
+    #
+    #     out += "</tr>"
 
     context = {
         "title": "Superheatmap",
-        "out" : out
+        "content": out
     }
 
-    return render(request, 'puzzle/heatmap.html', context)
+    return render(request, 'puzzle/base.html', context)
+
+
+def clear_cells(request):
+    with open('brabant_puzzle/self_filled.csv', 'r') as f:
+        df = pd.read_csv(f, index_col=0)
+        df.to_csv('brabant_puzzle/old_self_filled/' + str(int(random.uniform(1000, 2000))) + ".csv")
+
+    with open('brabant_puzzle/self_filled.csv', 'w') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(['Cell', 'Answer'])
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))

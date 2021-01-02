@@ -7,7 +7,7 @@ from brabant_puzzle.utils import get_data
 
 
 if __name__ == "__main__":
-    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties = get_data()
+    antwoorden_df, categorien_df, categorie_antwoord, antwoord_categorie, antwoorden, categorieen, opties, antwoorden_fixed = get_data()
     while True:
         cat1 = int(input("Categorie nummer 1:"))
         cat2 = int(input("Categorie nummer 2:"))

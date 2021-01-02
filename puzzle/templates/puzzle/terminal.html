@@ -7,11 +7,15 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="refresh" content="1"/>
-    <title>Terminal</title>
+    <title>{{ title }}</title>
 </head>
 <body>
 
-{{ out | safe}}
+<h1>{{ title }}</h1>
+
+<div style='margin: 5px'>
+{{ content | safe}}
+</div>
 
 </body>
 </html>

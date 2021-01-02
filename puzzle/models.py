@@ -35,7 +35,8 @@ class UploadSettings(models.Model):
         ('b-star', 'b-star'),
         ('c-star', 'c-star'),
         ('d-star', 'd-star'),
-        ('e-star', 'e-star')
+        ('e-star', 'e-star'),
+        ('f-star', 'f-star')
     )
 
     SELF_FILLED_CHOICES = (
@@ -48,6 +49,11 @@ class UploadSettings(models.Model):
         ('False', 'False')
     )
 
+    USE_FIXED = (
+        ('True', 'True'),
+        ('False', 'False')
+    )
+
     with open("brabant_puzzle/settings.txt", "r") as f:
         settings = json.load(f)
 
@@ -56,6 +62,7 @@ class UploadSettings(models.Model):
     timeout = models.TextField(max_length=100, default=settings["timeout"])
     use_self_filled = models.CharField(max_length=10, choices=SELF_FILLED_CHOICES, default=settings["use_self_filled"])
     double_check = models.CharField(max_length=10, choices=DOUBLE_CHECK, default=settings["double_check"])
+    use_fixed = models.CharField(max_length=10, choices=USE_FIXED, default=settings["use_fixed"])
 
 
 class UpdateCell(models.Model):
